@@ -4,8 +4,8 @@ const SUPABASE_URL="https://zhdcekhqntytiswdjqaw.supabase.co";
 const SUPABASE_KEY="sb_publishable_bcVp32RbgpOHOYbmjcaAPg_G4fiLDIw";
 const SUPABASE_HEADERS={apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json"};
 const RESPONSAVEIS_TECNICOS={
- "Marcelo de Araujo Santos":{nome:"Marcelo de Araujo Santos",titulo:"Técnico em Meio Ambiente",cft:"07978312666"},
- "Marco Antônio de Araujo Santos":{nome:"Marco Antônio de Araujo Santos",titulo:"Responsável Técnico",cft:"07636895641"}
+ "Marcelo de Araujo Santos":{nome:"Marcelo de Araujo Santos",titulo:"Técnico em Meio Ambiente",cft:"07978312666",assinatura:"ASSINATURAS TECNICOS.png",lado:"esquerda"},
+ "Marco Antônio de Araujo Santos":{nome:"Marco Antônio de Araujo Santos",titulo:"Técnico em Meio Ambiente",cft:"07636895641",assinatura:"ASSINATURAS TECNICOS.png",lado:"direita"}
 };
 let equipCache=[];
 async function carregarEquipamentosNuvem(){try{const r=await fetch(`${SUPABASE_URL}/rest/v1/equipamentos?select=*&order=id.asc`,{headers:SUPABASE_HEADERS});if(!r.ok)throw new Error(`Supabase ${r.status}`);equipCache=await r.json();db.set("equip",equipCache);}catch(err){console.warn("Usando equipamentos locais.",err);equipCache=db.get("equip");}refreshEquipSelectors();}
