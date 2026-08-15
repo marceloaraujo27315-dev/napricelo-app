@@ -1,5 +1,23 @@
-const CACHE="napricelo-campo-v30";
-const ASSETS=["./","./index.html","./style.css","./app.js","./cadastros.js","./equip-links.js","./cliente-ficha.js","./cliente-ficha.css","./equipamento-ficha.js","./equipamento-ficha.css","./periodicidade.js","./analise-periodicidade.js","./painel-manutencoes.js","./photos.js","./instalacao.js","./agendamento-instalacao.js","./cloud-history.js","./historico-instalacoes.js","./cliente-ie.js","./comercial.js","./agenda-comercial-integrada.js","./comercial-proposta.js","./comercial-proposta-logo.js","./manifest.json","./ASSINATURAS TECNICOS.png"];
+const CACHE="napricelo-campo-v31";
+const ASSETS=["./","./index.html","./style.css","./app.js","./cadastros.js","./equip-links.js","./cliente-ficha.js","./cliente-ficha.css","./equipamento-ficha.js","./equipamento-ficha.css","./periodicidade.js","./analise-periodicidade.js","./painel-manutencoes.js","./photos.js","./instalacao.js","./agendamento-instalacao.js","./cloud-history.js","./historico-instalacoes.js","./cliente-ie.js","./comercial.js","./agenda-comercial-integrada.js","./comercial-proposta.js","./comercial-proposta-logo.js","./ordem-servico-avancada.js","./manifest.json","./ASSINATURAS TECNICOS.png"];
 self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
-self.addEventListener("fetch",e=>{if(e.request.method!=="GET")return;e.respondWith(fetch(e.request).then(r=>{const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy));return r;}).catch(()=>caches.match(e.request)));});
+self.addEventListener("fetch",e=>{
+  if(e.request.method!=="GET")return;
+  if(e.request.mode==="navigate"){
+    e.respondWith(fetch(e.request).then(async r=>{
+      const txt=await r.text();
+      const html=txt.includes('ordem-servico-avancada.js')?txt:txt.replace('</body>','<script src="ordem-servico-avancada.js"></script></body>');
+      const resp=new Response(html,{status:r.status,statusText:r.statusText,headers:{"Content-Type":"text/html; charset=utf-8"}});
+      caches.open(CACHE).then(c=>c.put(e.request,resp.clone()));
+      return resp;
+    }).catch(async()=>{
+      const r=await caches.match(e.request)||await caches.match('./index.html');if(!r)return r;
+      const txt=await r.text();
+      const html=txt.includes('ordem-servico-avancada.js')?txt:txt.replace('</body>','<script src="ordem-servico-avancada.js"></script></body>');
+      return new Response(html,{headers:{"Content-Type":"text/html; charset=utf-8"}});
+    }));
+    return;
+  }
+  e.respondWith(fetch(e.request).then(r=>{const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy));return r;}).catch(()=>caches.match(e.request)));
+});
