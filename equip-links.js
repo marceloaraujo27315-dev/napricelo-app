@@ -12,7 +12,8 @@ async function salvarEquipamentoNuvem(o){
     modelo:o.modelo||null,
     capacidade:o.capacidade||null,
     localizacao:o.localizacao||o.local||null,
-    observacoes:o.observacoes||o.obs||null
+    observacoes:o.observacoes||o.obs||null,
+    periodicidade_meses:o.periodicidade_meses?Number(o.periodicidade_meses):null
   };
   const r=await fetch(`${SUPABASE_URL}/rest/v1/equipamentos`,{
     method:"POST",
@@ -26,4 +27,4 @@ function nomeClienteVinculado(eq){if(eq.cliente_id&&typeof clientesCache!=="unde
 function nomeUnidadeVinculada(eq){if(eq.unidade_id&&typeof unidadesCache!=="undefined"){const u=unidadesCache.find(x=>Number(x.id)===Number(eq.unidade_id));if(u)return u.nome;}return eq.unidade||"";}
 function addCss(href){if(!document.querySelector(`link[href="${href}"]`)){const l=document.createElement("link");l.rel="stylesheet";l.href=href;document.head.appendChild(l);}}
 function addScript(src,onload){const existente=document.querySelector(`script[src="${src}"]`);if(existente){if(onload)onload();return;}const s=document.createElement("script");s.src=src;if(onload)s.onload=onload;document.body.appendChild(s);}
-(function carregarProntuarios(){addCss("cliente-ficha.css");addCss("equipamento-ficha.css");addScript("cliente-ficha.js",()=>addScript("equipamento-ficha.js"));})();
+(function carregarProntuarios(){addCss("cliente-ficha.css");addCss("equipamento-ficha.css");addScript("cliente-ficha.js",()=>addScript("equipamento-ficha.js",()=>addScript("periodicidade.js")));})();
