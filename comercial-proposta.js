@@ -1,0 +1,54 @@
+function dataValidadeOrcamento(o){
+  if(!o?.data)return '';
+  const d=new Date(`${String(o.data).slice(0,10)}T12:00:00`);
+  d.setDate(d.getDate()+(Number(o.validade_dias)||15));
+  return d.toLocaleDateString('pt-BR');
+}
+async function dadosOrcamentoCompleto(id){
+  const o=comercialOrcamentos.find(x=>Number(x.id)===Number(id));
+  if(!o)throw new Error('Orçamento não encontrado.');
+  const [ri,rc]=await Promise.all([
+    fetch(`${SUPABASE_URL}/rest/v1/orcamento_itens?select=*&orcamento_id=eq.${Number(id)}&order=id.asc`,{headers:SUPABASE_HEADERS}),
+    o.cliente_id?fetch(`${SUPABASE_URL}/rest/v1/clientes?select=*&id=eq.${Number(o.cliente_id)}&limit=1`,{headers:SUPABASE_HEADERS}):Promise.resolve(null)
+  ]);
+  if(!ri.ok)throw new Error(await ri.text());
+  const itens=await ri.json();
+  let cliente=null;
+  if(rc){if(!rc.ok)throw new Error(await rc.text());cliente=(await rc.json())[0]||null;}
+  return {o,itens,cliente};
+}
+function blocoItensProposta(itens){
+  return `<div class="proposta-table"><div class="proposta-tr proposta-th"><span>Descrição</span><span>Qtd.</span><span>Un.</span><span>Valor unit.</span><span>Subtotal</span></div>${itens.map(i=>`<div class="proposta-tr"><span>${escHtml(i.descricao||'')}</span><span>${Number(i.quantidade||0).toLocaleString('pt-BR')}</span><span>${escHtml(i.unidade||'')}</span><span>${moeda(i.valor_unitario)}</span><span><b>${moeda(i.subtotal)}</b></span></div>`).join('')}</div>`;
+}
+async function verOrcamentoComercial(id){
+  try{
+    const {o,itens,cliente}=await dadosOrcamentoCompleto(id);
+    const doc=cliente?.documento||'';
+    const ie=cliente?.inscricao_estadual||'';
+    abrirFicha(`<div class="detail-head"><small>PROPOSTA COMERCIAL</small><h2>${escHtml(o.numero||'')}</h2><p>${escHtml(o.cliente||'')}</p></div>
+      <h3>Cliente</h3>${linha('Nome / razão social',o.cliente)}${linha('CPF / CNPJ',doc)}${linha('Inscrição Estadual',ie)}${linha('Unidade / propriedade',o.unidade)}${linha('Município',o.municipio||cliente?.municipio)}${linha('Endereço',cliente?.endereco)}${linha('Contato',cliente?.responsavel)}${linha('Telefone',cliente?.telefone)}${linha('E-mail',cliente?.email)}
+      <h3>Proposta</h3>${linha('Número',o.numero)}${linha('Data',fmtComData(o.data))}${linha('Validade',`${Number(o.validade_dias)||15} dias — até ${dataValidadeOrcamento(o)}`)}${linha('Situação',o.status)}
+      <h3>Itens</h3>${blocoItensProposta(itens)}
+      <h3>Valores</h3>${linha('Desconto',moeda(o.desconto))}${linha('Acréscimos / deslocamento',moeda(o.acrescimos))}${linha('TOTAL',moeda(o.total))}${linha('Condição de pagamento',o.forma_pagamento)}
+      <h3>Condições e observações</h3><div class="detail-note">${escHtml(o.observacoes||'Sem observações adicionais.')}</div>
+      <button class="report-btn" onclick="gerarPropostaComercial(${Number(o.id)})">Gerar proposta / PDF</button>`);
+  }catch(e){console.error(e);alert('Não foi possível abrir a proposta comercial.');}
+}
+async function gerarPropostaComercial(id){
+  let dados;try{dados=await dadosOrcamentoCompleto(id);}catch(e){console.error(e);return alert('Não foi possível carregar a proposta.');}
+  const {o,itens,cliente}=dados,w=window.open('','_blank');if(!w)return alert('O navegador bloqueou a abertura da proposta. Permita pop-ups e tente novamente.');
+  const doc=cliente?.documento||'',ie=cliente?.inscricao_estadual||'';
+  w.document.open();w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escHtml(o.numero||'Proposta')}</title><style>
+  @page{size:A4;margin:13mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#26352d;font-size:11px;margin:0}.cab{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;border-bottom:4px solid #176b45;padding-bottom:10px}.cab strong{font-size:23px;color:#176b45}.cab .doc{text-align:right}.titulo{margin:18px 0 10px}.titulo h1{font-size:20px;color:#176b45;margin:0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px}.linha{padding:5px 0;border-bottom:1px solid #e2e7e4}.linha b{display:inline-block;min-width:125px;color:#40564a}h2{font-size:14px;color:#176b45;margin:16px 0 6px}.tabela{width:100%;border-collapse:collapse;margin-top:5px}.tabela th,.tabela td{border:1px solid #d8dfdb;padding:7px;text-align:left}.tabela th{background:#edf4f0;color:#176b45}.tabela .num{text-align:right}.total{margin:12px 0 0 auto;width:55%}.total div{display:flex;justify-content:space-between;padding:5px;border-bottom:1px solid #ddd}.total .geral{font-size:15px;font-weight:bold;color:#176b45;border-top:2px solid #176b45}.nota{background:#f4f7f5;padding:10px;border-radius:6px;white-space:pre-wrap;min-height:45px}.aceite{margin-top:34px;display:grid;grid-template-columns:1fr 1fr;gap:35px;text-align:center}.assin{border-top:1px solid #555;padding-top:5px;margin-top:40px}.rodape{margin-top:25px;border-top:1px solid #bbb;padding-top:7px;color:#68766e;font-size:9px;display:flex;justify-content:space-between}.acoes{margin:15px 0}.acoes button{background:#176b45;color:#fff;border:0;border-radius:8px;padding:10px 16px;font-weight:bold}@media print{.acoes{display:none}}
+  </style></head><body><div class="cab"><div><strong>NAPRICELO</strong><br><b>Soluções Ambientais</b><br><small>Araxá – MG • (34) 3611-0223 • napricelocontato@gmail.com</small></div><div class="doc"><b>PROPOSTA COMERCIAL</b><br>${escHtml(o.numero||'')}<br><small>Data: ${fmtComData(o.data)}</small></div></div>
+  <div class="titulo"><h1>${escHtml(o.cliente||'Cliente')}</h1><div>Validade: ${Number(o.validade_dias)||15} dias — até ${dataValidadeOrcamento(o)}</div></div>
+  <h2>Dados do cliente</h2><div class="grid"><div class="linha"><b>Cliente</b>${escHtml(o.cliente||'')}</div><div class="linha"><b>CPF/CNPJ</b>${escHtml(doc)}</div><div class="linha"><b>Inscrição Estadual</b>${escHtml(ie)}</div><div class="linha"><b>Unidade</b>${escHtml(o.unidade||'')}</div><div class="linha"><b>Município</b>${escHtml(o.municipio||cliente?.municipio||'')}</div><div class="linha"><b>Contato</b>${escHtml(cliente?.responsavel||'')}</div><div class="linha"><b>Telefone</b>${escHtml(cliente?.telefone||'')}</div><div class="linha"><b>E-mail</b>${escHtml(cliente?.email||'')}</div></div>${cliente?.endereco?`<div class="linha"><b>Endereço</b>${escHtml(cliente.endereco)}</div>`:''}
+  <h2>Produtos e serviços</h2><table class="tabela"><thead><tr><th>Descrição</th><th>Qtd.</th><th>Un.</th><th>Valor unit.</th><th>Subtotal</th></tr></thead><tbody>${itens.map(i=>`<tr><td>${escHtml(i.descricao||'')}</td><td class="num">${Number(i.quantidade||0).toLocaleString('pt-BR')}</td><td>${escHtml(i.unidade||'')}</td><td class="num">${moeda(i.valor_unitario)}</td><td class="num"><b>${moeda(i.subtotal)}</b></td></tr>`).join('')}</tbody></table>
+  <div class="total"><div><span>Desconto</span><span>${moeda(o.desconto)}</span></div><div><span>Acréscimos / deslocamento</span><span>${moeda(o.acrescimos)}</span></div><div class="geral"><span>TOTAL</span><span>${moeda(o.total)}</span></div></div>
+  <h2>Condição de pagamento</h2><div class="nota">${escHtml(o.forma_pagamento||'A combinar')}</div><h2>Condições e observações</h2><div class="nota">${escHtml(o.observacoes||'Sem observações adicionais.')}</div>
+  <div class="aceite"><div><div class="assin">Napricelo Soluções Ambientais</div></div><div><div class="assin">Aceite do cliente<br>${escHtml(o.cliente||'')}</div></div></div>
+  <div class="rodape"><span>Napricelo Soluções Ambientais</span><span>${escHtml(o.numero||'')}</span></div><div class="acoes"><button onclick="window.print()">Imprimir / Salvar em PDF</button></div></body></html>`);w.document.close();
+}
+const alterarStatusOrcBase=typeof alterarStatusOrc==='function'?alterarStatusOrc:null;
+if(alterarStatusOrcBase){window.alterarStatusOrc=async function(id,status){await alterarStatusOrcBase(id,status);if(status==='Venda fechada'){const ok=confirm('Venda fechada. Deseja agendar o serviço agora?');if(ok&&typeof agendarOrcamento==='function')await agendarOrcamento(id);}};}
+(function estiloProposta(){const st=document.createElement('style');st.textContent='.proposta-table{display:grid;gap:0;border:1px solid #dfe6e2;border-radius:8px;overflow:hidden}.proposta-tr{display:grid;grid-template-columns:2.2fr .55fr .55fr .9fr .9fr;gap:7px;padding:8px;border-bottom:1px solid #e5eae7;align-items:center}.proposta-tr:last-child{border-bottom:0}.proposta-th{background:#edf4f0;color:#176b45;font-weight:bold}@media(max-width:650px){.proposta-tr{grid-template-columns:1fr 1fr}.proposta-th{display:none}}';document.head.appendChild(st);})();
