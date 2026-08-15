@@ -1,6 +1,8 @@
 async function salvarEquipamentoNuvem(o){
   const clienteId=o.cliente_id?Number(o.cliente_id):null;
   const unidadeId=o.unidade_id?Number(o.unidade_id):null;
+  const periodicidade=o.periodicidade_meses?Number(o.periodicidade_meses):null;
+  const dataBase=o.data_base_manutencao||null;
   const payload={
     cliente_id:clienteId,
     unidade_id:unidadeId,
@@ -13,7 +15,9 @@ async function salvarEquipamentoNuvem(o){
     capacidade:o.capacidade||null,
     localizacao:o.localizacao||o.local||null,
     observacoes:o.observacoes||o.obs||null,
-    periodicidade_meses:o.periodicidade_meses?Number(o.periodicidade_meses):null
+    periodicidade_meses:periodicidade,
+    data_base_manutencao:dataBase,
+    proxima_manutencao:(periodicidade&&dataBase&&typeof addMesesData==='function')?addMesesData(dataBase,periodicidade):null
   };
   const r=await fetch(`${SUPABASE_URL}/rest/v1/equipamentos`,{
     method:"POST",
