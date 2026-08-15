@@ -28,25 +28,10 @@ async function renderHistoricoInstalacoes(){
   }catch(err){console.error(err);el.innerHTML='<p>Não foi possível carregar o histórico de instalações.</p>';}
 }
 
-function componentesInstalacaoHtml(x){
-  const a=Array.isArray(x.componentes)?x.componentes:[];
-  if(!a.length)return '';
-  return `<h3>Componentes / volumes do sistema</h3>${a.map(c=>linha(ROTULOS_COMPONENTES_INST[c.campo]||c.campo,c.valor)).join('')}`;
-}
-function checklistInstalacaoHtml(x){
-  const a=Array.isArray(x.checklist)?x.checklist:[];
-  if(!a.length)return '<p class="muted">Checklist não informado.</p>';
-  return `<div class="check-detail">${a.map(c=>`<div class="${c.ok?'done':'pending'}">${c.ok?'✓':'○'} ${esc(c.item||'Item')}</div>`).join('')}</div>`;
-}
-function fotosInstalacaoHtml(x){
-  const fotos=[['Antes',x.foto_antes],['Durante',x.foto_durante],['Depois',x.foto_depois]].filter(f=>f[1]);
-  if(!fotos.length)return '<p class="muted">Nenhuma foto registrada nesta instalação.</p>';
-  return `<div class="photo-grid">${fotos.map(([n,u])=>`<figure><img src="${esc(u)}" alt="Foto ${esc(n)}"><figcaption>${esc(n)}</figcaption></figure>`).join('')}</div>`;
-}
-function conteudoInstalacao(x,comBotao=true){
-  const rt=responsavelTecnico(x.responsavel_tecnico);
-  return `<div class="detail-head"><small>POP DE INSTALAÇÃO</small><h2>${esc(x.produto||'Sistema ambiental')}</h2><p>${esc(x.volume||'')}</p></div><h3>Identificação</h3>${linha('Cliente / empreendimento',x.cliente)}${linha('Unidade / propriedade',x.unidade)}${linha('Município',x.municipio)}${linha('Data da instalação',formatarDataHistorico(x.data||x.created_at))}${linha('Responsável técnico',rt.nome)}${rt.cft?linha('Registro CFT',rt.cft):''}${linha('Local / setor',x.local_instalacao)}${linha('Origem do efluente',x.origem_efluente)}${componentesInstalacaoHtml(x)}<h3>Checklist da instalação</h3>${checklistInstalacaoHtml(x)}<h3>Observações finais</h3><div class="detail-note">${esc(x.observacoes||'Sem observações registradas.')}</div><h3>Registro fotográfico</h3>${fotosInstalacaoHtml(x)}${x.agendamento_id?`<div class="detail-note">Instalação originada do agendamento nº ${Number(x.agendamento_id)}</div>`:''}${comBotao?`<button class="report-btn" onclick="gerarRelatorioInstalacao(${Number(x.id)||0})">Gerar relatório / PDF</button>`:''}`;
-}
+function componentesInstalacaoHtml(x){const a=Array.isArray(x.componentes)?x.componentes:[];if(!a.length)return '';return `<h3>Componentes / volumes do sistema</h3>${a.map(c=>linha(ROTULOS_COMPONENTES_INST[c.campo]||c.campo,c.valor)).join('')}`;}
+function checklistInstalacaoHtml(x){const a=Array.isArray(x.checklist)?x.checklist:[];if(!a.length)return '<p class="muted">Checklist não informado.</p>';return `<div class="check-detail">${a.map(c=>`<div class="${c.ok?'done':'pending'}">${c.ok?'✓':'○'} ${esc(c.item||'Item')}</div>`).join('')}</div>`;}
+function fotosInstalacaoHtml(x){const fotos=[['Antes',x.foto_antes],['Durante',x.foto_durante],['Depois',x.foto_depois]].filter(f=>f[1]);if(!fotos.length)return '<p class="muted">Nenhuma foto registrada nesta instalação.</p>';return `<div class="photo-grid">${fotos.map(([n,u])=>`<figure><img src="${esc(u)}" alt="Foto ${esc(n)}"><figcaption>${esc(n)}</figcaption></figure>`).join('')}</div>`;}
+function conteudoInstalacao(x,comBotao=true){const rt=responsavelTecnico(x.responsavel_tecnico);return `<div class="detail-head"><small>POP DE INSTALAÇÃO</small><h2>${esc(x.produto||'Sistema ambiental')}</h2><p>${esc(x.volume||'')}</p></div><h3>Identificação</h3>${linha('Cliente / empreendimento',x.cliente)}${linha('Unidade / propriedade',x.unidade)}${linha('Município',x.municipio)}${linha('Data da instalação',formatarDataHistorico(x.data||x.created_at))}${linha('Responsável técnico',rt.nome)}${rt.cft?linha('Registro CFT',rt.cft):''}${linha('Local / setor',x.local_instalacao)}${linha('Origem do efluente',x.origem_efluente)}${componentesInstalacaoHtml(x)}<h3>Checklist da instalação</h3>${checklistInstalacaoHtml(x)}<h3>Observações finais</h3><div class="detail-note">${esc(x.observacoes||'Sem observações registradas.')}</div><h3>Registro fotográfico</h3>${fotosInstalacaoHtml(x)}${x.agendamento_id?`<div class="detail-note">Instalação originada do agendamento nº ${Number(x.agendamento_id)}</div>`:''}${comBotao?`<button class="report-btn" onclick="gerarRelatorioInstalacao(${Number(x.id)||0})">Gerar relatório / PDF</button>`:''}`;}
 function verInstalacaoHistorico(i){const x=window.historicoInstalacoesCache[i];if(x)abrirFicha(conteudoInstalacao(x,true));}
 function abrirInstalacaoPorId(id){const x=window.historicoInstalacoesCache.find(r=>Number(r.id)===Number(id));if(x)return abrirFicha(conteudoInstalacao(x,true));buscarInstalacoes(`id=eq.${Number(id)}`).then(a=>{if(a[0])abrirFicha(conteudoInstalacao(a[0],true));});}
 
@@ -79,3 +64,5 @@ if(typeof abrirFichaClienteAntesInstalacoes==='function'){
   };
 }
 function abrirInstalacaoCliente(id){const x=(window._instalacoesClienteAtual||[]).find(r=>Number(r.id)===Number(id));if(x)abrirFicha(conteudoInstalacao(x,true));else abrirInstalacaoPorId(id);}
+
+(function carregarExtensoesComerciais(){['cliente-ie.js','comercial.js'].forEach(src=>{if(document.querySelector(`script[src="${src}"]`))return;const s=document.createElement('script');s.src=src+'?v=1';document.body.appendChild(s);});})();
