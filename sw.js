@@ -1,4 +1,4 @@
-const CACHE="napricelo-campo-v19";
+const CACHE="napricelo-campo-v20";
 const ASSETS=["./","./index.html","./style.css","./app.js","./cadastros.js","./equip-links.js","./cliente-ficha.js","./cliente-ficha.css","./equipamento-ficha.js","./equipamento-ficha.css","./periodicidade.js","./painel-manutencoes.js","./photos.js","./cloud-history.js","./manifest.json","./ASSINATURAS TECNICOS.png"];
 self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
