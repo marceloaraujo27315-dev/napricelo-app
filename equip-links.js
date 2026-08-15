@@ -37,3 +37,12 @@ function nomeUnidadeVinculada(eq){
   }
   return eq.unidade||"";
 }
+
+(function carregarProntuarioCliente(){
+  if(!document.querySelector('link[href="cliente-ficha.css"]')){
+    const l=document.createElement("link");l.rel="stylesheet";l.href="cliente-ficha.css";document.head.appendChild(l);
+  }
+  if(!document.querySelector('script[src="cliente-ficha.js"]')){
+    const s=document.createElement("script");s.src="cliente-ficha.js";document.body.appendChild(s);
+  }
+})();
