@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#176b45">
+  <title>Napricelo Campo</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">N</div>
+    <div><strong>NAPRICELO</strong><small>Soluções Ambientais</small></div>
+  </div>
+  <span class="badge">CAMPO</span>
+</header>
+
+<main>
+  <section id="home" class="page active">
+    <div class="hero">
+      <h1>Controle de Manutenção</h1>
+      <p>POPs, inspeções, fotos e histórico dos sistemas ambientais.</p>
+    </div>
+    <div class="grid">
+      <button class="card" onclick="showPage('cadastro')"><b>＋</b><span>Cadastrar equipamento</span></button>
+      <button class="card" onclick="showPage('biodigestor')"><b>BD</b><span>POP Biodigestor</span></button>
+      <button class="card" onclick="showPage('gordura')"><b>CG</b><span>POP Caixa de Gordura</span></button>
+      <button class="card" onclick="showPage('sao')"><b>SAO</b><span>POP Água e Óleo</span></button>
+      <button class="card" onclick="showPage('historico')"><b>☷</b><span>Histórico</span></button>
+      <button class="card" onclick="exportar()"><b>⇩</b><span>Exportar registros</span></button>
+    </div>
+  </section>
+
+  <section id="cadastro" class="page">
+    <h2>Cadastro do equipamento</h2>
+    <form id="equipForm">
+      <label>Cliente / empreendimento<input name="cliente" required></label>
+      <label>Unidade / propriedade<input name="unidade"></label>
+      <label>Município<input name="municipio"></label>
+      <label>Tipo<select name="tipo" id="tipo"><option>Biodigestor</option><option>Caixa de Gordura</option><option>SAO</option><option>Ecobio Reator</option></select></label>
+      <label>Código<input name="codigo" id="codigo" placeholder="Ex.: BD-01" required></label>
+      <label>Localização / setor<input name="local"></label>
+      <label>Marca / modelo<input name="modelo"></label>
+      <label>Capacidade<input name="capacidade"></label>
+      <label>Origem do efluente<textarea name="origem"></textarea></label>
+      <label>Observações<textarea name="obs"></textarea></label>
+      <button class="primary">Salvar equipamento</button>
+    </form>
+  </section>
+
+  <section id="biodigestor" class="page"><div class="pop"></div></section>
+  <section id="gordura" class="page"><div class="pop"></div></section>
+  <section id="sao" class="page"><div class="pop"></div></section>
+
+  <section id="historico" class="page">
+    <h2>Histórico</h2>
+    <div class="tabs"><button onclick="renderHistorico('equip')">Equipamentos</button><button onclick="renderHistorico('manut')">Manutenções</button></div>
+    <div id="listaHistorico"></div>
+  </section>
+</main>
+
+<nav>
+  <button onclick="showPage('home')">⌂<span>Início</span></button>
+  <button onclick="showPage('cadastro')">＋<span>Cadastro</span></button>
+  <button onclick="showPage('historico')">☷<span>Histórico</span></button>
+</nav>
+<script src="app.js"></script>
+</body>
+</html>
