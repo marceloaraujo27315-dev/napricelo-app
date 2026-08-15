@@ -22,27 +22,8 @@ async function salvarEquipamentoNuvem(o){
   if(!r.ok)throw new Error(await r.text());
   return (await r.json())[0];
 }
-
-function nomeClienteVinculado(eq){
-  if(eq.cliente_id&&typeof clientesCache!=="undefined"){
-    const c=clientesCache.find(x=>Number(x.id)===Number(eq.cliente_id));
-    if(c)return c.nome;
-  }
-  return eq.cliente||"";
-}
-function nomeUnidadeVinculada(eq){
-  if(eq.unidade_id&&typeof unidadesCache!=="undefined"){
-    const u=unidadesCache.find(x=>Number(x.id)===Number(eq.unidade_id));
-    if(u)return u.nome;
-  }
-  return eq.unidade||"";
-}
-
-(function carregarProntuarioCliente(){
-  if(!document.querySelector('link[href="cliente-ficha.css"]')){
-    const l=document.createElement("link");l.rel="stylesheet";l.href="cliente-ficha.css";document.head.appendChild(l);
-  }
-  if(!document.querySelector('script[src="cliente-ficha.js"]')){
-    const s=document.createElement("script");s.src="cliente-ficha.js";document.body.appendChild(s);
-  }
-})();
+function nomeClienteVinculado(eq){if(eq.cliente_id&&typeof clientesCache!=="undefined"){const c=clientesCache.find(x=>Number(x.id)===Number(eq.cliente_id));if(c)return c.nome;}return eq.cliente||"";}
+function nomeUnidadeVinculada(eq){if(eq.unidade_id&&typeof unidadesCache!=="undefined"){const u=unidadesCache.find(x=>Number(x.id)===Number(eq.unidade_id));if(u)return u.nome;}return eq.unidade||"";}
+function addCss(href){if(!document.querySelector(`link[href="${href}"]`)){const l=document.createElement("link");l.rel="stylesheet";l.href=href;document.head.appendChild(l);}}
+function addScript(src,onload){const existente=document.querySelector(`script[src="${src}"]`);if(existente){if(onload)onload();return;}const s=document.createElement("script");s.src=src;if(onload)s.onload=onload;document.body.appendChild(s);}
+(function carregarProntuarios(){addCss("cliente-ficha.css");addCss("equipamento-ficha.css");addScript("cliente-ficha.js",()=>addScript("equipamento-ficha.js"));})();
