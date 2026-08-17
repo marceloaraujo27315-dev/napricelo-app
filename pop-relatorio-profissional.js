@@ -6,7 +6,8 @@ function cfg(v){return (typeof configs!=='undefined'&&configs[v])?configs[v]:{ch
 function rt(nome){return (typeof RESPONSAVEIS_TECNICOS!=='undefined'&&RESPONSAVEIS_TECNICOS[nome])||{nome:nome||'Não informado',titulo:'Responsável Técnico',cft:''};}
 function linha(k,v){return `<div class="r"><b>${e(k)}</b><span>${e(v||'—')}</span></div>`;}
 window.gerarRelatorioManutencao=function(id){
- const x=(window.cloudHistorico?.manut||[]).find(r=>Number(r.id)===Number(id));if(!x)return alert('Registro não encontrado.');
+ const lista=(typeof cloudHistorico!=='undefined'&&Array.isArray(cloudHistorico.manut))?cloudHistorico.manut:((window.cloudHistorico&&Array.isArray(window.cloudHistorico.manut))?window.cloudHistorico.manut:[]);
+ const x=lista.find(r=>String(r.id)===String(id));if(!x)return alert('Registro não encontrado. Atualize o Histórico e tente novamente.');
  const c=cfg(x.tipo),tec=rt(x.tecnico),w=window.open('','_blank');if(!w)return alert('Permita pop-ups para abrir o relatório.');
  const fotos=[['Antes',x.foto_antes],['Durante',x.foto_durante],['Depois',x.foto_depois]].filter(a=>a[1]);
  const checks=Array.isArray(x.checks)?x.checks.map((v,i)=>`<div class="ck ${v?'ok':''}">${v?'☑':'☐'} ${e(c.checks[i]||`Item ${i+1}`)}</div>`).join(''):'<span>Checklist não informado.</span>';
