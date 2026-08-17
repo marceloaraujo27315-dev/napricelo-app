@@ -1,40 +1,15 @@
 (function(){
-function equipamentosDaOS(a){
-  const lista=typeof eqs==='function'?eqs():[];
-  return lista.filter(e=>Number(e.cliente_id)===Number(a.cliente_id)&&(a.unidade_id?Number(e.unidade_id)===Number(a.unidade_id):true));
-}
-function abrirPopOS(a,e){
-  if(!e)return;
-  try{sessionStorage.setItem('napricelo_os_pop',JSON.stringify({agenda_id:Number(a.id),equipamento_id:Number(e.id),os:`OS-${String(a.id).padStart(5,'0')}`,tipo:e.tipo||'',codigo:e.codigo||''}));}catch(_){ }
-  if(typeof fecharFicha==='function')fecharFicha();
-  if(typeof fecharFichaEquipamento==='function')fecharFichaEquipamento();
-  if(typeof iniciarManutencaoEquip==='function'){
-    iniciarManutencaoEquip(e.id);
-    setTimeout(()=>{
-      const page=typeof tipoPaginaManut==='function'?tipoPaginaManut(e.tipo):'biodigestor';
-      const raiz=document.getElementById(page);if(!raiz)return;
-      let aviso=raiz.querySelector('.os-pop-vinculo');
-      if(!aviso){aviso=document.createElement('div');aviso.className='os-pop-vinculo';const pop=raiz.querySelector('.pop')||raiz;pop.insertBefore(aviso,pop.firstChild);}
-      aviso.innerHTML=`<b>Execução vinculada à OS-${String(a.id).padStart(5,'0')}</b><span>${escHtml(e.codigo||'Equipamento')} • ${escHtml(e.tipo||'')}</span>`;
-      aviso.scrollIntoView({behavior:'smooth',block:'start'});
-    },220);
-  }
-}
-function escolherEquipamentoOS(a,lista){
-  const itens=lista.map(e=>`<button type="button" class="os-pop-equip" onclick="window.__abrirPopOS(${Number(a.id)},${Number(e.id)})"><b>${escHtml(e.codigo||'Sem código')}</b><span>${escHtml(e.tipo||'Equipamento')}${e.capacidade?' • '+escHtml(e.capacidade):''}</span><small>${escHtml(e.localizacao||'')}</small></button>`).join('');
-  abrirFicha(`<div class="detail-head"><small>ORDEM DE SERVIÇO</small><h2>Selecionar equipamento</h2><p>Escolha o equipamento que será atendido nesta OS.</p></div><div class="os-pop-lista">${itens}</div>`);
-}
-window.__abrirPopOS=function(agendaId,equipId){const a=(agendaComercialCache||[]).find(x=>Number(x.id)===Number(agendaId));const e=(typeof eqs==='function'?eqs():[]).find(x=>Number(x.id)===Number(equipId));if(a&&e)abrirPopOS(a,e);};
-const base=window.iniciarServicoDaOS;
-window.iniciarServicoDaOS=async function(id){
-  const a=(agendaComercialCache||[]).find(x=>Number(x.id)===Number(id));
-  if(!a)return base?base.apply(this,arguments):undefined;
-  const tipo=String(a.tipo_servico||'').toLowerCase();
-  if(!tipo.includes('manuten'))return base?base.apply(this,arguments):undefined;
-  const lista=equipamentosDaOS(a);
-  if(!lista.length){alert('Nenhum equipamento cadastrado foi encontrado para este cliente/unidade. Cadastre ou vincule o equipamento antes de iniciar o POP.');return;}
-  if(lista.length===1){abrirPopOS(a,lista[0]);return;}
-  escolherEquipamentoOS(a,lista);
-};
-const st=document.createElement('style');st.textContent='.os-pop-vinculo{background:#eaf5ef;border-left:5px solid #176b45;border-radius:10px;padding:12px 14px;margin:0 0 14px;display:flex;flex-direction:column;gap:3px}.os-pop-vinculo b{color:#176b45}.os-pop-vinculo span{font-size:13px}.os-pop-lista{display:grid;gap:9px}.os-pop-equip{width:100%;text-align:left;border:1px solid #cfe0d7;background:#fff;border-radius:10px;padding:12px;color:#25372d}.os-pop-equip b,.os-pop-equip span,.os-pop-equip small{display:block}.os-pop-equip b{color:#176b45;font-size:16px}.os-pop-equip span{margin-top:3px}.os-pop-equip small{margin-top:4px;color:#65766d}';document.head.appendChild(st);
+function contexto(){try{return JSON.parse(sessionStorage.getItem('napricelo_os_pop')||'null')}catch(_){return null}}
+function limparContexto(){try{sessionStorage.removeItem('napricelo_os_pop')}catch(_){}}
+function equipamentosDaOS(a){const lista=typeof eqs==='function'?eqs():[];return lista.filter(e=>Number(e.cliente_id)===Number(a.cliente_id)&&(a.unidade_id?Number(e.unidade_id)===Number(a.unidade_id):true));}
+function paginaTipo(tipo){return typeof tipoPaginaManut==='function'?tipoPaginaManut(tipo):String(tipo||'').toLowerCase().includes('gordura')?'gordura':String(tipo||'').toLowerCase().includes('sao')?'sao':'biodigestor'}
+function mostrarVinculo(){const c=contexto();if(!c)return;const raiz=document.getElementById(paginaTipo(c.tipo));if(!raiz)return;let aviso=raiz.querySelector('.os-pop-vinculo');if(!aviso){aviso=document.createElement('div');aviso.className='os-pop-vinculo';const pop=raiz.querySelector('.pop')||raiz;pop.insertBefore(aviso,pop.firstChild)}aviso.innerHTML=`<div><small>ORDEM DE SERVIÇO</small><b>Execução vinculada à ${escHtml(c.os||'OS')}</b><span>${escHtml(c.codigo||'Equipamento')} • ${escHtml(c.tipo||'')}</span></div><em>Ao salvar este POP, a OS será atualizada automaticamente.</em>`;}
+function abrirPopOS(a,e){if(!e)return;try{sessionStorage.setItem('napricelo_os_pop',JSON.stringify({agenda_id:Number(a.id),equipamento_id:Number(e.id),os:`OS-${String(a.id).padStart(5,'0')}`,tipo:e.tipo||'',codigo:e.codigo||''}))}catch(_){ }if(typeof fecharFicha==='function')fecharFicha();if(typeof fecharFichaEquipamento==='function')fecharFichaEquipamento();if(typeof iniciarManutencaoEquip==='function'){iniciarManutencaoEquip(e.id);setTimeout(()=>{mostrarVinculo();const raiz=document.getElementById(paginaTipo(e.tipo));raiz?.querySelector('.os-pop-vinculo')?.scrollIntoView({behavior:'smooth',block:'start'})},220)}}
+function escolherEquipamentoOS(a,lista){const itens=lista.map(e=>`<button type="button" class="os-pop-equip" onclick="window.__abrirPopOS(${Number(a.id)},${Number(e.id)})"><b>${escHtml(e.codigo||'Sem código')}</b><span>${escHtml(e.tipo||'Equipamento')}${e.capacidade?' • '+escHtml(e.capacidade):''}</span><small>${escHtml(e.localizacao||'')}</small></button>`).join('');abrirFicha(`<div class="detail-head"><small>ORDEM DE SERVIÇO</small><h2>Selecionar equipamento</h2><p>Escolha o equipamento que será atendido nesta OS.</p></div><div class="os-pop-lista">${itens}</div>`)}
+window.__abrirPopOS=function(agendaId,equipId){const a=(agendaComercialCache||[]).find(x=>Number(x.id)===Number(agendaId));const e=(typeof eqs==='function'?eqs():[]).find(x=>Number(x.id)===Number(equipId));if(a&&e)abrirPopOS(a,e)};
+const base=window.iniciarServicoDaOS;window.iniciarServicoDaOS=async function(id){const a=(agendaComercialCache||[]).find(x=>Number(x.id)===Number(id));if(!a)return base?base.apply(this,arguments):undefined;const tipo=String(a.tipo_servico||'').toLowerCase();if(!tipo.includes('manuten'))return base?base.apply(this,arguments):undefined;const lista=equipamentosDaOS(a);if(!lista.length){alert('Nenhum equipamento cadastrado foi encontrado para este cliente/unidade. Cadastre ou vincule o equipamento antes de iniciar o POP.');return}if(lista.length===1){abrirPopOS(a,lista[0]);return}escolherEquipamentoOS(a,lista)};
+async function atualizarOSaposPOP(c,registro){if(!c?.agenda_id)return;try{let os=typeof carregarOSPorAgenda==='function'?await carregarOSPorAgenda(c.agenda_id):null;const agora=new Date().toLocaleString('pt-BR');const nota=`POP executado em ${agora}. Equipamento: ${c.codigo||registro?.codigo||'—'}. Registro de manutenção: ${registro?.id||'salvo'}.`;if(os?.id){const ch=os.checklist&&typeof os.checklist==='object'?{...os.checklist}:{};ch.servico_executado_pop=true;ch.pop_executado=true;ch.pop_equipamento_id=c.equipamento_id||null;ch.pop_manutencao_id=registro?.id||null;ch.pop_executado_em=new Date().toISOString();const obs=[os.observacoes_execucao||'',nota].filter(Boolean).join('\n');const r=await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${Number(os.id)}`,{method:'PATCH',headers:{...SUPABASE_HEADERS,Prefer:'return=minimal'},body:JSON.stringify({checklist:ch,observacoes_execucao:obs})});if(!r.ok)throw new Error(await r.text())}else if(typeof garantirOSAgenda==='function'){os=await garantirOSAgenda(c.agenda_id);if(os?.id)return atualizarOSaposPOP(c,registro)}return true}catch(e){console.warn('Falha ao vincular POP à OS',e);return false}}
+function instalarSubmit(){document.querySelectorAll('.manutForm').forEach(f=>{if(f.dataset.osPopHook)return;f.dataset.osPopHook='1';f.addEventListener('submit',async ev=>{const c=contexto();if(!c||Number(c.equipamento_id)!==Number((typeof eqs==='function'?eqs():[])[Number(f.querySelector('.equipSelect')?.value)]?.id))return;setTimeout(async()=>{let reg=null;try{const lista=db.get('manut');reg=[...lista].reverse().find(x=>Number(x.equipamento_id)===Number(c.equipamento_id))||null}catch(_){ }const ok=await atualizarOSaposPOP(c,reg);if(ok){limparContexto();alert(`${c.os} atualizada: POP registrado como executado.`);if(typeof atualizarAgendaComercial==='function')await atualizarAgendaComercial();if(typeof abrirOSAgenda==='function'){showPage('painel');setTimeout(()=>abrirOSAgenda(c.agenda_id),180)}}},900)},true)})}
+const st=document.createElement('style');st.textContent='.os-pop-vinculo{background:#eaf5ef;border-left:5px solid #176b45;border-radius:10px;padding:12px 14px;margin:0 0 14px;display:flex;justify-content:space-between;gap:12px;align-items:center}.os-pop-vinculo div{display:flex;flex-direction:column;gap:2px}.os-pop-vinculo small{font-size:10px;font-weight:800;color:#5e7569}.os-pop-vinculo b{color:#176b45;font-size:16px}.os-pop-vinculo span{font-size:13px}.os-pop-vinculo em{font-style:normal;font-size:11px;color:#5e7569;max-width:190px;text-align:right}.os-pop-lista{display:grid;gap:9px}.os-pop-equip{width:100%;text-align:left;border:1px solid #cfe0d7;background:#fff;border-radius:10px;padding:12px;color:#25372d}.os-pop-equip b,.os-pop-equip span,.os-pop-equip small{display:block}.os-pop-equip b{color:#176b45;font-size:16px}.os-pop-equip span{margin-top:3px}.os-pop-equip small{margin-top:4px;color:#65766d}@media(max-width:700px){.os-pop-vinculo{align-items:flex-start;flex-direction:column}.os-pop-vinculo em{text-align:left;max-width:none}}';document.head.appendChild(st);
+const ob=new MutationObserver(()=>{mostrarVinculo();instalarSubmit()});ob.observe(document.documentElement,{childList:true,subtree:true});setInterval(()=>{mostrarVinculo();instalarSubmit()},600);setTimeout(()=>{mostrarVinculo();instalarSubmit()},250);
 })();
