@@ -22,13 +22,18 @@
   function card(n,t,cls,onclick){return `<button class="pi-kpi ${cls||''}" onclick="${onclick}"><b>${n}</b><span>${t}</span></button>`}
   function itemAgenda(a){const d=dias(a.data_agendada),prazo=d===0?'Hoje':d<0?`Atrasado ${Math.abs(d)} dia(s)`:d===1?'Amanhã':`Em ${d} dias`;return `<button class="pi-item" onclick="painelInicioAbrirOS(${Number(a.id)})"><div><b>${esc(a.tipo_servico||'Serviço')} • ${esc(a.cliente||'')}</b><span>${esc(a.unidade||'')}${a.responsavel?' • '+esc(a.responsavel):''}</span></div><small>${fmt(a.data_agendada)}${a.horario?' • '+String(a.horario).slice(0,5):''}<br><strong>${prazo}</strong></small></button>`}
   function itemPrev(e,tipo,data){return `<button class="pi-item previsto" onclick="painelInicioAbrirAlertas()"><div><b>${tipo==='manut'?'Manutenção':'Análise'} • ${esc(e.codigo||'')}</b><span>${esc(e.cliente||'')}${e.unidade?' • '+esc(e.unidade):''}</span></div><small>${fmt(data)}</small></button>`}
+  function sincronizarAlertaHome(atrasados){
+    const box=document.getElementById('homeAlertaManut');if(!box)return;
+    if(atrasados.length){box.style.display='flex';box.className='home-alerta critico';box.onclick=abrirAgenda;box.innerHTML=`<span class="home-alerta-icone">!</span><span><b>${atrasados.length} serviço(s) atrasado(s)</b><small>Mesmo critério do contador Atrasados da Agenda Geral.</small></span><strong>Ver agenda</strong>`;}
+    else{box.style.display='none';}
+  }
 
   async function render(){
     const host=document.getElementById('painelInicioOperacional');if(!host)return;
     host.innerHTML='<div class="pi-loading">Atualizando painel...</div>';
     try{
       const {ag,eq,os}=await dados();
-      const hojeAg=ag.filter(x=>dias(x.data_agendada)===0),atras=ag.filter(x=>(dias(x.data_agendada)??999)<0),prox=ag.filter(x=>{const d=dias(x.data_agendada);return d!==null&&d>0&&d<=7}),andamento=ag.filter(x=>String(x.status||'').toLowerCase().includes('execu'));
+      const hojeAg=ag.filter(x=>dias(x.data_agendada)===0),atras=ag.filter(x=>(dias(x.data_agendada)??999)<0),prox=ag.filter(x=>{const d=dias(x.data_agendada);return d!==null&&d>0&&d<=7}),andamento=ag.filter(x=>String(x.status||'').toLowerCase().includes('execu')||String(x.status||'').toLowerCase().includes('andamento'));
       const previstos=[];eq.forEach(e=>{const dm=dias(e.proxima_manutencao);if(dm!==null&&dm>=0&&dm<=30&&!ag.some(a=>Number(a.equipamento_id)===Number(e.id)&&String(a.tipo_servico||'').toLowerCase().includes('manuten')))previstos.push({e,tipo:'manut',data:e.proxima_manutencao});const da=dias(e.proxima_analise);if(da!==null&&da>=0&&da<=30&&!ag.some(a=>Number(a.equipamento_id)===Number(e.id)&&String(a.tipo_servico||'').toLowerCase().includes('analis')))previstos.push({e,tipo:'analise',data:e.proxima_analise})});
       const lista=[...hojeAg,...prox].sort((a,b)=>String(a.data_agendada).localeCompare(String(b.data_agendada))||String(a.horario||'').localeCompare(String(b.horario||''))).slice(0,4);
       host.innerHTML=`
@@ -39,6 +44,7 @@
           <section class="pi-bloco"><div class="pi-titulo"><h3>Previsões próximas</h3><button onclick="painelInicioAbrirAlertas()">Ver alertas</button></div>${previstos.length?previstos.sort((a,b)=>String(a.data).localeCompare(String(b.data))).slice(0,4).map(x=>itemPrev(x.e,x.tipo,x.data)).join(''):'<p class="pi-vazio">Nenhuma manutenção ou análise prevista nos próximos 30 dias.</p>'}</section>
         </div>
         <div class="pi-atalhos"><button onclick="painelInicioAbrirAgenda()"><b>AG</b><span>Agenda Geral</span></button><button onclick="painelInicioAbrirAlertas()"><b>AL</b><span>Alertas</span></button><button onclick="showPage('clientes')"><b>CL</b><span>Clientes</span></button><button onclick="showPage('cadastro')"><b>＋</b><span>Novo equipamento</span></button></div>`;
+      setTimeout(()=>sincronizarAlertaHome(atras),120);
     }catch(e){console.error(e);host.innerHTML='<div class="pi-erro">Não foi possível atualizar o resumo operacional. <button onclick="painelInicialAtualizar()">Tentar novamente</button></div>'}
   }
   window.painelInicialAtualizar=render;
