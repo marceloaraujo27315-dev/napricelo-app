@@ -4,41 +4,68 @@ async function carregarOSCliente(clienteId){
   if(!box)return;
   box.innerHTML='<p class="muted">Carregando ordens de serviço...</p>';
   try{
-    const r=await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?select=*&cliente_id=eq.${Number(clienteId)}&order=id.desc`,{headers:SUPABASE_HEADERS});
-    if(!r.ok)throw new Error(await r.text());
-    let lista=await r.json();
-    /* Compatibilidade com OS antigas que possam não ter cliente_id gravado */
-    if(!lista.length){
-      const c=(window.clientesCache||[]).find(x=>Number(x.id)===Number(clienteId));
-      const rg=await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?select=*&order=id.desc`,{headers:SUPABASE_HEADERS});
-      if(rg.ok){
-        const todas=await rg.json();
-        lista=todas.filter(o=>Number(o.cliente_id)===Number(clienteId)||(c&&String(o.cliente||'').trim().toLowerCase()===String(c.nome||'').trim().toLowerCase()));
-      }
-    }
+    const c=(window.clientesCache||[]).find(x=>Number(x.id)===Number(clienteId));
+    const [ro,ra,re,ru]=await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?select=*&order=id.desc`,{headers:SUPABASE_HEADERS}),
+      fetch(`${SUPABASE_URL}/rest/v1/agendamentos_servicos?select=*&order=id.desc`,{headers:SUPABASE_HEADERS}),
+      fetch(`${SUPABASE_URL}/rest/v1/equipamentos?select=*`,{headers:SUPABASE_HEADERS}),
+      fetch(`${SUPABASE_URL}/rest/v1/unidades?select=*`,{headers:SUPABASE_HEADERS})
+    ]);
+    if(!ro.ok)throw new Error(await ro.text());
+    const todas=await ro.json();
+    const agendas=ra.ok?await ra.json():[];
+    const equipamentos=re.ok?await re.json():[];
+    const unidades=ru.ok?await ru.json():[];
+    let lista=todas.filter(o=>Number(o.cliente_id)===Number(clienteId)||(c&&String(o.cliente||'').trim().toLowerCase()===String(c.nome||'').trim().toLowerCase()));
+    lista=lista.map(o=>enriquecerOSCliente(o,agendas,equipamentos,unidades));
     renderOSCliente(lista);
   }catch(e){
     console.error('OS do cliente:',e);
     box.innerHTML='<p class="muted">Não foi possível carregar as ordens de serviço deste cliente.</p>';
   }
 }
+function enriquecerOSCliente(o,agendas,equipamentos,unidades){
+  const agenda=agendas.find(a=>Number(a.id)===Number(o.agenda_id));
+  const equipId=Number(o.equipamento_id||agenda?.equipamento_id||0);
+  let eq=equipamentos.find(e=>Number(e.id)===equipId);
+  if(!eq&&o.equipamento_codigo)eq=equipamentos.find(e=>String(e.codigo||'')===String(o.equipamento_codigo));
+  if(!eq&&agenda?.cliente_id){
+    const candidatos=equipamentos.filter(e=>Number(e.cliente_id)===Number(agenda.cliente_id)&&(agenda.unidade_id?Number(e.unidade_id)===Number(agenda.unidade_id):true));
+    if(candidatos.length===1)eq=candidatos[0];
+  }
+  const unidadeId=Number(o.unidade_id||agenda?.unidade_id||eq?.unidade_id||0);
+  const un=unidades.find(u=>Number(u.id)===unidadeId);
+  const tipo=o.tipo_servico||agenda?.tipo_servico||inferirTipoServicoOS(o,agenda)||'Serviço';
+  return {...o,_agenda:agenda,_equip:eq,_unidade:un,_tipo:tipo};
+}
+function inferirTipoServicoOS(o,a){
+  const txt=[o.observacoes,a?.observacoes].filter(Boolean).join(' ').toLowerCase();
+  if(txt.includes('manuten'))return 'Manutenção';
+  if(txt.includes('instala'))return 'Instalação';
+  if(txt.includes('anális')||txt.includes('analise'))return 'Análise';
+  if(txt.includes('limpeza'))return 'Limpeza';
+  return '';
+}
 function renderOSCliente(lista){
   const box=document.getElementById('clienteOSLista');if(!box)return;
   if(!lista.length){box.innerHTML='<p class="muted">Nenhuma ordem de serviço vinculada a este cliente.</p>';return;}
-  box.innerHTML=`<div class="cliente-os-toolbar"><input id="clienteOSBusca" placeholder="Buscar OS, serviço, equipamento ou responsável" oninput="filtrarOSCliente()"><select id="clienteOSStatus" onchange="filtrarOSCliente()"><option value="">Todos os status</option><option>Aberta</option><option>Em execução</option><option>Concluída</option></select></div><div id="clienteOSCards"></div>`;
+  box.innerHTML=`<div class="cliente-os-toolbar"><input id="clienteOSBusca" placeholder="Buscar OS, serviço, equipamento ou responsável" oninput="filtrarOSCliente()"><select id="clienteOSStatus" onchange="filtrarOSCliente()"><option value="">Todos os status</option><option>Aberta</option><option>Em execução</option><option>Em andamento</option><option>Concluída</option></select></div><div id="clienteOSCards"></div>`;
   window.clienteOSCache=lista;filtrarOSCliente();
 }
 function filtrarOSCliente(){
   const q=String(document.getElementById('clienteOSBusca')?.value||'').toLowerCase();
   const st=String(document.getElementById('clienteOSStatus')?.value||'');
-  const arr=(window.clienteOSCache||[]).filter(o=>(!st||String(o.status||'')===st)&&(!q||[o.numero,o.tipo_servico,o.equipamento_codigo,o.responsavel_execucao,o.responsavel].some(v=>String(v||'').toLowerCase().includes(q))));
+  const arr=(window.clienteOSCache||[]).filter(o=>(!st||String(o.status||'')===st)&&(!q||[o.numero,o._tipo,o._equip?.codigo,o._equip?.tipo,o._equip?.modelo,o._unidade?.nome,o.responsavel_execucao,o.responsavel,o._agenda?.responsavel].some(v=>String(v||'').toLowerCase().includes(q))));
   const box=document.getElementById('clienteOSCards');if(!box)return;
   box.innerHTML=arr.length?arr.map(o=>{
     const numero=o.numero||`OS-${String(o.id||'').padStart(5,'0')}`;
-    const data=o.data_conclusao||o.data_inicio||o.created_at;
-    const resp=o.responsavel_execucao||o.responsavel||'A definir';
+    const data=o.data_conclusao||o.data_inicio||o._agenda?.data_agendada||o.created_at;
+    const resp=o.responsavel_execucao||o.responsavel||o._agenda?.responsavel||'A definir';
     const agenda=Number(o.agenda_id||0);
-    return `<div class="cliente-os-card"><div class="cliente-os-main"><b>${escHtml(numero)}</b><span>${escHtml(o.tipo_servico||'Serviço')}</span><small>${escHtml(o.equipamento_codigo||o.equipamento||'Sem equipamento informado')} • ${escHtml(resp)}</small></div><div class="cliente-os-meta"><span class="cliente-os-status">${escHtml(o.status||'Aberta')}</span><small>${data?fmtData(data):'Sem data'}</small></div><div class="cliente-os-actions">${agenda?`<button onclick="fecharFichaCliente();executarAgendaComercial(${agenda})">Abrir OS</button><button onclick="imprimirOrdemServico(${agenda})">Imprimir / PDF</button>`:'<span class="muted">OS sem agenda vinculada</span>'}</div></div>`;
+    const eq=o._equip;
+    const equipamento=eq?[eq.codigo,eq.tipo,eq.modelo].filter(Boolean).join(' • '):(o.equipamento_codigo||o.equipamento||'Equipamento não vinculado');
+    const unidade=o._unidade?.nome||o._agenda?.unidade||'';
+    return `<div class="cliente-os-card"><div class="cliente-os-main"><b>${escHtml(numero)}</b><span>${escHtml(o._tipo||'Serviço')}</span><small>${escHtml(equipamento)}${unidade?' • '+escHtml(unidade):''}</small><small>Responsável: ${escHtml(resp)}</small></div><div class="cliente-os-meta"><span class="cliente-os-status">${escHtml(o.status||'Aberta')}</span><small>${data?fmtData(data):'Sem data'}</small></div><div class="cliente-os-actions">${agenda?`<button onclick="fecharFichaCliente();executarAgendaComercial(${agenda})">Abrir OS</button><button onclick="imprimirOrdemServico(${agenda})">Imprimir / PDF</button>`:'<span class="muted">OS sem agenda vinculada</span>'}</div></div>`;
   }).join(''):'<p class="muted">Nenhuma OS encontrada com esse filtro.</p>';
 }
 (function integrarOSProntuario(){
