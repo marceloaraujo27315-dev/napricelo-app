@@ -55,4 +55,5 @@
   if(typeof carregarAnterior==='function')window.carregarAgendaGeral=async function(){await corrigirAgendamentosSemEquipamento();return carregarAnterior();};
   setTimeout(corrigirAgendamentosSemEquipamento,1800);
   if(!document.querySelector('script[data-agenda-organizacao]')){const s=document.createElement('script');s.src='agenda-organizacao-v2.js?v=1';s.dataset.agendaOrganizacao='1';document.body.appendChild(s);}
+  if(!document.querySelector('script[data-cliente-gestao]')){const s=document.createElement('script');s.src='cliente-gestao-v2.js?v=1';s.dataset.clienteGestao='1';document.body.appendChild(s);}
 })();
