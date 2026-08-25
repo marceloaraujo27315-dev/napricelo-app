@@ -27,9 +27,18 @@ async function applyImg(img){
  img.dataset.secureStorage='loading';
  try{img.src=await privateBlobUrl(src);img.dataset.secureStorage='1'}catch(err){console.warn('Foto privada não carregada',err);img.dataset.secureStorage='erro'}
 }
-function apply(root=document){root.querySelectorAll?.('img[src]').forEach(applyImg)}
-const obs=new MutationObserver(ms=>{for(const m of ms){for(const n of m.addedNodes){if(n.nodeType!==1)continue;if(n.matches?.('img[src]'))applyImg(n);apply(n)}}});
-obs.observe(document.documentElement,{childList:true,subtree:true});
+async function applyLink(a){
+ const href=a.getAttribute('href')||'';if(!isStorageUrl(href)||a.dataset.secureStorage==='1')return;
+ a.dataset.secureStorage='loading';
+ try{a.href=await privateBlobUrl(href);a.dataset.secureStorage='1'}catch(err){console.warn('Arquivo privado não carregado',err);a.dataset.secureStorage='erro'}
+}
+function apply(root=document){root.querySelectorAll?.('img[src]').forEach(applyImg);root.querySelectorAll?.('a[href]').forEach(applyLink)}
+function observeDoc(doc){
+ try{apply(doc);const ob=new MutationObserver(ms=>{for(const m of ms){for(const n of m.addedNodes){if(n.nodeType!==1)continue;if(n.matches?.('img[src]'))applyImg(n);if(n.matches?.('a[href]'))applyLink(n);apply(n)}}});ob.observe(doc.documentElement,{childList:true,subtree:true});return ob}catch{return null}
+}
+observeDoc(document);
+const nativeOpen=window.open.bind(window);
+window.open=function(){const w=nativeOpen(...arguments);if(!w)return w;try{const d=w.document,nativeClose=d.close.bind(d);d.close=function(){const r=nativeClose();setTimeout(()=>observeDoc(w.document),0);return r;};setTimeout(()=>observeDoc(w.document),0)}catch{}return w};
 window.secureStorageUrl=privateBlobUrl;
 window.secureStoragePath=pathFromUrl;
 window.secureStorageApply=apply;
