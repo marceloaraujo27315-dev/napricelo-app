@@ -8,10 +8,11 @@ function linksAnalise(a){
  return {foto,laudo,limpa};
 }
 function dataIso(v){if(!v)return '';return String(v).slice(0,10);}
+function dadosPdfAnalise(a,l){return {...a,observacoes:l.limpa,foto_url:l.foto||a.foto_url||null,laudo_url:l.laudo||a.laudo_url||null};}
 function acaoAnaliseHTML(a,l){return `<div class="equip-time-actions analise-time-actions"><button type="button" class="analise-detalhes">Ver detalhes</button>${l.foto?`<button type="button" data-url="${escAH(l.foto)}">Foto</button>`:''}${l.laudo?`<button type="button" data-url="${escAH(l.laudo)}">Laudo</button>`:''}<button type="button" class="analise-pdf">PDF</button></div>`;}
 function ligarAcoesAnalise(card,a,l){
  const det=card.querySelector('.analise-detalhes');if(det)det.onclick=()=>mostrarDetalhesAnalise(a,l);
- const pdf=card.querySelector('.analise-pdf');if(pdf)pdf.onclick=()=>typeof imprimirAnaliseAmbiental==='function'&&imprimirAnaliseAmbiental({...a,observacoes:l.limpa});
+ const pdf=card.querySelector('.analise-pdf');if(pdf)pdf.onclick=()=>typeof imprimirAnaliseAmbiental==='function'&&imprimirAnaliseAmbiental(dadosPdfAnalise(a,l));
  card.querySelectorAll('[data-url]').forEach(b=>b.onclick=()=>window.open(b.dataset.url,'_blank','noopener'));
 }
 function localizarAnalise(card,analises,i){
@@ -52,7 +53,7 @@ window.mostrarDetalhesAnalise=function(a,l){
  let m=document.getElementById('analiseDetailModal');if(!m){m=document.createElement('div');m.id='analiseDetailModal';m.className='detail-modal';m.innerHTML='<div class="detail-sheet"><button class="detail-close">×</button><div id="analiseDetailContent"></div></div>';document.body.appendChild(m);m.querySelector('.detail-close').onclick=()=>m.classList.remove('open');}
  const p=(rot,v,un='')=>v!==null&&v!==undefined&&v!==''?`<div><b>${rot}</b><span>${escAH(v)}${un}</span></div>`:'';
  document.getElementById('analiseDetailContent').innerHTML=`<div class="detail-head"><small>COLETA / ANÁLISE</small><h2>${escAH(a.codigo||'Análise')}</h2><p>${escAH(a.data||'')}</p></div><div class="profile-info-grid">${p('Ponto de coleta',a.ponto)}${p('Responsável',a.responsavel)}${p('pH',a.ph)}${p('Temperatura',a.temperatura,' °C')}${p('DBO',a.dbo,' mg/L')}${p('DQO',a.dqo,' mg/L')}${p('Sólidos sedimentáveis',a.solidos,' mL/L')}${p('Óleos e graxas',a.oleos,' mg/L')}${p('Aspecto',a.aspecto)}${p('Odor',a.odor)}</div>${a.outros_param?`<h3>Parâmetros complementares</h3><div class="detail-note">${escAH(a.outros_param).replace(/\n/g,'<br>')}</div>`:''}${l.limpa?`<h3>Observações</h3><div class="detail-note">${escAH(l.limpa)}</div>`:''}<div class="equip-doc-actions">${l.foto?`<button onclick="window.open('${escAH(l.foto)}','_blank','noopener')">Abrir foto</button>`:''}${l.laudo?`<button onclick="window.open('${escAH(l.laudo)}','_blank','noopener')">Abrir laudo</button>`:''}<button id="analiseDetailPdf">Imprimir / PDF</button></div>`;
- document.getElementById('analiseDetailPdf').onclick=()=>imprimirAnaliseAmbiental({...a,observacoes:l.limpa});m.classList.add('open');
+ document.getElementById('analiseDetailPdf').onclick=()=>imprimirAnaliseAmbiental(dadosPdfAnalise(a,l));m.classList.add('open');
 };
 const base=window.abrirFichaEquipamento;if(typeof base==='function')window.abrirFichaEquipamento=function(id){const r=base.apply(this,arguments);setTimeout(()=>organizarHistoricoAnalises(id),650);setTimeout(()=>organizarHistoricoAnalises(id),1300);return r;};
 })();
