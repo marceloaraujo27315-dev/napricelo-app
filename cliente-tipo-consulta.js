@@ -10,7 +10,18 @@
  docLabel.insertAdjacentElement('afterend',busca);
  function digits(v){return String(v||'').replace(/\D/g,'');}
  function tipo(){return form.elements.tipo_cliente?.value||'pj';}
- function ajustar(){const t=tipo(),ie=form.elements.inscricao_estadual; if(t==='pj'){docLabel.firstChild.textContent='CNPJ';doc.placeholder='CNPJ';busca.style.display='block';document.getElementById('clienteConsultaMsg').textContent='Digite o CNPJ e toque em Buscar dados.';}else if(t==='produtor'){docLabel.firstChild.textContent='CPF do produtor';doc.placeholder='CPF';busca.style.display='block';document.getElementById('clienteConsultaMsg').textContent='Informe a Inscrição Estadual. Para Minas Gerais, o botão abre a consulta pública da SEF/MG.';if(ie)ie.placeholder='Inscrição Estadual do produtor rural';}else{docLabel.firstChild.textContent='CPF';doc.placeholder='CPF';busca.style.display='none';} }
+ function ajustar(){
+   const t=tipo(),ie=form.elements.inscricao_estadual,btn=document.getElementById('clienteBuscarCadastro'),msg=document.getElementById('clienteConsultaMsg');
+   if(t==='pj'){
+     docLabel.firstChild.textContent='CNPJ';doc.placeholder='CNPJ';busca.style.display='block';btn.textContent='Buscar dados';msg.textContent='Digite o CNPJ e toque em Buscar dados.';
+   }else if(t==='produtor'){
+     docLabel.firstChild.textContent='CPF do produtor';doc.placeholder='CPF do titular';busca.style.display='block';btn.textContent='Consultar produtor rural';
+     msg.textContent='Informe a Inscrição Estadual do produtor. A consulta oficial da SEF/MG será aberta para conferência dos dados cadastrais.';
+     if(ie)ie.placeholder='Inscrição Estadual do produtor rural';
+   }else{
+     docLabel.firstChild.textContent='CPF';doc.placeholder='CPF';busca.style.display='none';
+   }
+ }
  form.elements.tipo_cliente.addEventListener('change',ajustar); ajustar();
  async function consultarCNPJ(cnpj){
    try{
@@ -26,9 +37,12 @@
    const btn=document.getElementById('clienteBuscarCadastro'),msg=document.getElementById('clienteConsultaMsg');
    if(tipo()==='produtor'){
      const ie=String(form.elements.inscricao_estadual?.value||'').trim();
+     const cpf=digits(doc.value);
      if(!ie)return alert('Informe primeiro a Inscrição Estadual do produtor rural.');
-     window.open('https://www.fazenda.mg.gov.br/empresas/Cadastro/cadastro/consultapublica.html','_blank');
-     msg.textContent='Consulta pública da SEF/MG aberta. Confira os dados do produtor e complete o cadastro.'; return;
+     if(cpf && cpf.length!==11)return alert('Se informar o CPF do produtor, use 11 números.');
+     msg.innerHTML='<b>Consulta oficial aberta.</b> Pesquise pela Inscrição Estadual <b>'+ie.replace(/</g,'&lt;')+'</b> e confira nome, situação cadastral e demais dados antes de salvar.';
+     window.open('https://www.fazenda.mg.gov.br/empresas/Cadastro/cadastro/consultapublica.html','_blank','noopener');
+     return;
    }
    const cnpj=digits(doc.value); if(cnpj.length!==14)return alert('Informe um CNPJ com 14 números.');
    btn.disabled=true;btn.textContent='Consultando...';msg.textContent='Buscando dados cadastrais...';
