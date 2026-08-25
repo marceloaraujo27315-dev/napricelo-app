@@ -10,8 +10,18 @@
  docLabel.insertAdjacentElement('afterend',busca);
  function digits(v){return String(v||'').replace(/\D/g,'');}
  function tipo(){return form.elements.tipo_cliente?.value||'pj';}
- function ajustar(){const t=tipo(),ie=form.elements.inscricao_estadual; if(t==='pj'){docLabel.firstChild.textContent='CNPJ';doc.placeholder='CNPJ';busca.style.display='block';document.getElementById('clienteConsultaMsg').textContent='Digite o CNPJ e toque em Buscar dados.';}else if(t==='produtor'){docLabel.firstChild.textContent='CPF do produtor';doc.placeholder='CPF';busca.style.display='block';document.getElementById('clienteConsultaMsg').textContent='Informe a Inscrição Estadual e a UF. Para Minas Gerais, o botão abre a consulta pública da SEF/MG.';if(ie)ie.placeholder='Inscrição Estadual do produtor rural';}else{docLabel.firstChild.textContent='CPF';doc.placeholder='CPF';busca.style.display='none';} }
+ function ajustar(){const t=tipo(),ie=form.elements.inscricao_estadual; if(t==='pj'){docLabel.firstChild.textContent='CNPJ';doc.placeholder='CNPJ';busca.style.display='block';document.getElementById('clienteConsultaMsg').textContent='Digite o CNPJ e toque em Buscar dados.';}else if(t==='produtor'){docLabel.firstChild.textContent='CPF do produtor';doc.placeholder='CPF';busca.style.display='block';document.getElementById('clienteConsultaMsg').textContent='Informe a Inscrição Estadual. Para Minas Gerais, o botão abre a consulta pública da SEF/MG.';if(ie)ie.placeholder='Inscrição Estadual do produtor rural';}else{docLabel.firstChild.textContent='CPF';doc.placeholder='CPF';busca.style.display='none';} }
  form.elements.tipo_cliente.addEventListener('change',ajustar); ajustar();
+ async function consultarCNPJ(cnpj){
+   try{
+     const r=await fetch('https://brasilapi.com.br/api/cnpj/v1/'+cnpj,{cache:'no-store'});
+     if(r.ok){const d=await r.json();return {nome:d.razao_social||d.nome_fantasia||'',fantasia:d.nome_fantasia||'',municipio:d.municipio||'',endereco:[d.descricao_tipo_de_logradouro,d.logradouro,d.numero,d.complemento,d.bairro,d.cep,d.uf].filter(Boolean).join(', '),telefone:d.ddd_telefone_1||'',email:d.email||'',situacao:d.descricao_situacao_cadastral||''};}
+   }catch(e){console.warn('BrasilAPI indisponível',e);}
+   const r2=await fetch('https://publica.cnpj.ws/cnpj/'+cnpj,{cache:'no-store'});
+   if(!r2.ok)throw new Error('CNPJ não encontrado');
+   const d=await r2.json(),e=d.estabelecimento||{},cidade=e.cidade||{},estado=e.estado||{};
+   return {nome:d.razao_social||e.nome_fantasia||'',fantasia:e.nome_fantasia||'',municipio:cidade.nome||'',endereco:[e.tipo_logradouro,e.logradouro,e.numero,e.complemento,e.bairro,e.cep,estado.sigla].filter(Boolean).join(', '),telefone:[e.ddd1,e.telefone1].filter(Boolean).join(' '),email:e.email||'',situacao:e.situacao_cadastral||e.descricao_situacao_cadastral||''};
+ }
  document.getElementById('clienteBuscarCadastro').addEventListener('click',async()=>{
    const btn=document.getElementById('clienteBuscarCadastro'),msg=document.getElementById('clienteConsultaMsg');
    if(tipo()==='produtor'){
@@ -23,14 +33,12 @@
    const cnpj=digits(doc.value); if(cnpj.length!==14)return alert('Informe um CNPJ com 14 números.');
    btn.disabled=true;btn.textContent='Consultando...';msg.textContent='Buscando dados cadastrais...';
    try{
-     const r=await fetch('https://brasilapi.com.br/api/cnpj/v1/'+cnpj); if(!r.ok)throw new Error('CNPJ não encontrado'); const d=await r.json();
-     form.elements.nome.value=d.razao_social||d.nome_fantasia||'';
-     form.elements.municipio.value=d.municipio||'';
-     const end=[d.descricao_tipo_de_logradouro,d.logradouro,d.numero,d.complemento,d.bairro,d.cep,d.uf].filter(Boolean).join(', '); form.elements.endereco.value=end;
-     if(form.elements.telefone&&!form.elements.telefone.value)form.elements.telefone.value=d.ddd_telefone_1||'';
+     const d=await consultarCNPJ(cnpj);
+     form.elements.nome.value=d.nome||''; form.elements.municipio.value=d.municipio||''; form.elements.endereco.value=d.endereco||'';
+     if(form.elements.telefone&&!form.elements.telefone.value)form.elements.telefone.value=d.telefone||'';
      if(form.elements.email&&!form.elements.email.value)form.elements.email.value=d.email||'';
-     msg.innerHTML='<b>Dados encontrados.</b> '+(d.nome_fantasia||d.razao_social||'')+' • Situação: '+(d.descricao_situacao_cadastral||'não informada')+'. Confira antes de salvar.';
-   }catch(err){console.error(err);msg.textContent='Não foi possível consultar automaticamente. Você pode preencher os dados manualmente.';alert('Consulta automática indisponível ou CNPJ não encontrado.');}
+     msg.innerHTML='<b>Dados encontrados.</b> '+(d.fantasia||d.nome||'')+(d.situacao?' • Situação: '+d.situacao:'')+'. Confira antes de salvar.';
+   }catch(err){console.error(err);msg.textContent='Não foi possível consultar automaticamente. Você pode preencher os dados manualmente.';alert('Não foi possível consultar este CNPJ agora. Tente novamente em alguns instantes ou preencha manualmente.');}
    finally{btn.disabled=false;btn.textContent='Buscar dados';}
  });
  const baseSalvar=window.salvarRegistroCadastro;
