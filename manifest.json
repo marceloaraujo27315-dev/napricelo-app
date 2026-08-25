@@ -1,1 +1,35 @@
-{"name":"Napricelo Campo","short_name":"Napricelo","start_url":"./","display":"standalone","background_color":"#f3f6f4","theme_color":"#176b45","description":"Aplicativo de campo para POPs, coletas, análises e registros ambientais da Napricelo Soluções Ambientais."}
+{
+  "id": "./",
+  "name": "Napricelo Campo",
+  "short_name": "Napricelo Campo",
+  "description": "Aplicativo de campo da Napricelo Soluções Ambientais para cadastros, POPs, manutenções, coletas, análises, fotos e histórico técnico.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#f3f6f4",
+  "theme_color": "#176b45",
+  "orientation": "portrait-primary",
+  "lang": "pt-BR",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "napricelo-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Histórico",
+      "short_name": "Histórico",
+      "url": "./#historico"
+    },
+    {
+      "name": "Clientes",
+      "short_name": "Clientes",
+      "url": "./#clientes"
+    }
+  ]
+}
