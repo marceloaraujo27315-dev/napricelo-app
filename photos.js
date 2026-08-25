@@ -2,6 +2,8 @@ const PHOTO_SUPABASE_URL="https://zhdcekhqntytiswdjqaw.supabase.co";
 const PHOTO_SUPABASE_KEY="sb_publishable_bcVp32RbgpOHOYbmjcaAPg_G4fiLDIw";
 const PHOTO_BUCKET="manutencoes-fotos";
 
+function photoAccessToken(){try{return JSON.parse(localStorage.getItem('napricelo_auth_session')||'null')?.access_token||''}catch{return ''}}
+function photoAuthHeaders(extra={}){const jwt=photoAccessToken();if(!jwt)throw new Error('Faça login novamente para salvar fotos.');return {apikey:PHOTO_SUPABASE_KEY,Authorization:`Bearer ${jwt}`,...extra}}
 function photoExt(file){
   const byName=(file.name||"").split(".").pop().toLowerCase();
   if(["jpg","jpeg","png","webp"].includes(byName)) return byName==="jpeg"?"jpg":byName;
@@ -18,7 +20,7 @@ async function uploadFotoManutencao(file,codigo,etapa){
   const path=`${safe}/${Date.now()}-${crypto.randomUUID()}-${etapa}.${photoExt(file)}`;
   const r=await fetch(`${PHOTO_SUPABASE_URL}/storage/v1/object/${PHOTO_BUCKET}/${path}`,{
     method:"POST",
-    headers:{apikey:PHOTO_SUPABASE_KEY,Authorization:`Bearer ${PHOTO_SUPABASE_KEY}`,"Content-Type":file.type,"x-upsert":"false"},
+    headers:photoAuthHeaders({"Content-Type":file.type,"x-upsert":"false"}),
     body:file
   });
   if(!r.ok) throw new Error(await r.text());
@@ -29,7 +31,7 @@ async function salvarManutencaoComFotos(o,eq,fotos){
   const campos={};
   Object.keys(o).filter(k=>/^campo\d+$/.test(k)).forEach(k=>campos[k]=o[k]||"");
   const payload={equipamento_id:eq.id||null,tipo:o.tipo||null,codigo:eq.codigo||null,cliente:eq.cliente||null,unidade:eq.unidade||null,municipio:eq.municipio||null,localizacao:eq.localizacao||eq.local||null,data:o.data||null,tecnico:o.tecnico||null,checks:o.checks||[],campos,observacoes:o.observacoes||null,foto_antes:fotos.antes||null,foto_durante:fotos.durante||null,foto_depois:fotos.depois||null};
-  const r=await fetch(`${PHOTO_SUPABASE_URL}/rest/v1/manutencoes`,{method:"POST",headers:{apikey:PHOTO_SUPABASE_KEY,Authorization:`Bearer ${PHOTO_SUPABASE_KEY}`,"Content-Type":"application/json",Prefer:"return=representation"},body:JSON.stringify(payload)});
+  const r=await fetch(`${PHOTO_SUPABASE_URL}/rest/v1/manutencoes`,{method:"POST",headers:photoAuthHeaders({"Content-Type":"application/json",Prefer:"return=representation"}),body:JSON.stringify(payload)});
   if(!r.ok) throw new Error(await r.text());
   return (await r.json())[0];
 }
@@ -62,7 +64,7 @@ function prepararFotosManutencao(){
         }
         if(!finalizouOS)alert(Object.keys(fotos).length?"Manutenção e fotos salvas na nuvem.":"Manutenção salva na nuvem.");
         f.reset();box.textContent="Selecione o equipamento.";showPage("home");
-      }catch(err){console.error(err);alert("Não foi possível salvar a manutenção/fotos na nuvem. Verifique a internet, o tamanho e o formato das imagens e tente novamente.");}
+      }catch(err){console.error(err);alert("Não foi possível salvar a manutenção/fotos na nuvem. Verifique a sessão, a internet, o tamanho e o formato das imagens e tente novamente.");}
       finally{if(btn){btn.disabled=false;btn.textContent="Salvar manutenção";}}
     },true);
   });
