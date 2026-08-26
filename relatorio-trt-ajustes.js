@@ -76,7 +76,7 @@
       document.querySelectorAll(`[data-trt-abrir-os="${Number(agendaId)}"]`).forEach(b=>b.style.display=tem?'':'none');
     }catch(_){ }
   }
-  function adicionarBotoesNoModal(agendaId){const box=document.querySelector('.os-resgate-acoes');if(!box||box.querySelector(`[data-trt-os="${Number(agendaId)}"]`))return;const an=document.createElement('button');an.type='button';an.className='action';an.dataset.trtOs=String(agendaId);an.textContent='Anexar TRT / PDF';an.onclick=()=>anexarTRTPDFOS(agendaId);const ab=document.createElement('button');ab.type='button';ab.className='action';ab.dataset.trtAbrirOs=String(agendaId);ab.textContent='Visualizar TRT';ab.dataset.trtAbrirOs=String(agendaId);ab.style.display='none';ab.onclick=()=>mostrarTRTInline(agendaId,true);box.append(an,ab);atualizarAcoesTRT(agendaId).then(()=>mostrarTRTInline(agendaId));}
+  function adicionarBotoesNoModal(agendaId){const box=document.querySelector('.os-resgate-acoes');if(!box||box.querySelector(`[data-trt-os="${Number(agendaId)}"]`))return;const an=document.createElement('button');an.type='button';an.className='action';an.dataset.trtOs=String(agendaId);an.textContent='Anexar TRT / PDF';an.onclick=()=>anexarTRTPDFOS(agendaId);const ab=document.createElement('button');ab.type='button';ab.className='action';ab.dataset.trtAbrirOs=String(agendaId);ab.textContent='Visualizar TRT';ab.style.display='none';ab.onclick=()=>mostrarTRTInline(agendaId,true);box.append(an,ab);atualizarAcoesTRT(agendaId).then(()=>mostrarTRTInline(agendaId));}
   const visualBase=window.visualizarExecucaoOS;if(typeof visualBase==='function')window.visualizarExecucaoOS=async function(agendaId){const r=await visualBase.apply(this,arguments);setTimeout(()=>adicionarBotoesNoModal(Number(agendaId)),80);return r};
   function varrerOS(){document.querySelectorAll('[data-relatorio-tecnico-os]').forEach(rel=>{const id=Number(rel.dataset.relatorioTecnicoOs);const pai=rel.parentElement;if(!id||!pai||pai.querySelector(`[data-trt-os="${id}"]`))return;const b=document.createElement('button');b.type='button';b.className='action';b.dataset.trtOs=String(id);b.textContent='Anexar TRT / PDF';b.onclick=()=>anexarTRTPDFOS(id);pai.insertBefore(b,rel.nextSibling);const v=document.createElement('button');v.type='button';v.className='action';v.dataset.trtAbrirOs=String(id);v.textContent='Visualizar TRT';v.style.display='none';v.onclick=()=>mostrarTRTInline(id,true);pai.insertBefore(v,b.nextSibling);atualizarAcoesTRT(id);});}
   new MutationObserver(varrerOS).observe(document.body,{childList:true,subtree:true});setInterval(varrerOS,1500);setTimeout(varrerOS,500);
@@ -98,16 +98,29 @@
     }
   };
 
+  function extrairCoordenadas(v){
+    const m=String(v||'').match(/Coordenadas:\s*(-?\d+(?:[.,]\d+)?)\s*,\s*(-?\d+(?:[.,]\d+)?)/i);
+    if(!m)return null;
+    const lat=Number(m[1].replace(',','.')),lon=Number(m[2].replace(',','.'));
+    return Number.isFinite(lat)&&Number.isFinite(lon)?{lat,lon}:null;
+  }
+  function abrirNoMapa(input,status){
+    const c=extrairCoordenadas(input.value);
+    if(!c){status.textContent='Capture ou informe as coordenadas antes de abrir no mapa.';return;}
+    const url=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${c.lat},${c.lon}`)}`;
+    window.open(url,'_blank','noopener');
+    status.textContent=`Ponto aberto no mapa: ${c.lat.toFixed(6)}, ${c.lon.toFixed(6)}.`;
+  }
   function inserirCoordenadas(input,lat,lon,acc){
     const base=String(input.value||'').replace(/\s*\|?\s*Coordenadas:\s*-?\d+[.,]\d+\s*,\s*-?\d+[.,]\d+(?:\s*\(precisão[^)]*\))?/i,'').trim();
     const coord=`Coordenadas: ${lat.toFixed(6)}, ${lon.toFixed(6)}${Number.isFinite(acc)?` (precisão ±${Math.round(acc)} m)`:''}`;
     input.value=base?`${base} | ${coord}`:coord;
     input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));
   }
-  function capturarLocalizacao(input,btn,status){
+  function capturarLocalizacao(input,btn,status,mapBtn){
     if(!navigator.geolocation){status.textContent='Geolocalização não disponível neste navegador.';return;}
     btn.disabled=true;btn.textContent='Obtendo localização...';status.textContent='Autorize o acesso à localização, se o navegador solicitar.';
-    navigator.geolocation.getCurrentPosition(p=>{const c=p.coords;inserirCoordenadas(input,c.latitude,c.longitude,c.accuracy);status.textContent=`Localização capturada: ${c.latitude.toFixed(6)}, ${c.longitude.toFixed(6)}.`;btn.disabled=false;btn.textContent='Usar localização atual';},e=>{const msg=e.code===1?'Permissão de localização negada.':e.code===2?'Localização indisponível no momento.':'Tempo esgotado ao obter localização.';status.textContent=msg;btn.disabled=false;btn.textContent='Usar localização atual';},{enableHighAccuracy:true,timeout:15000,maximumAge:30000});
+    navigator.geolocation.getCurrentPosition(p=>{const c=p.coords;inserirCoordenadas(input,c.latitude,c.longitude,c.accuracy);status.textContent=`Localização capturada: ${c.latitude.toFixed(6)}, ${c.longitude.toFixed(6)}${c.accuracy?` (±${Math.round(c.accuracy)} m)`:''}.`;btn.disabled=false;btn.textContent='Usar localização atual';mapBtn.disabled=false;},e=>{const msg=e.code===1?'Permissão de localização negada.':e.code===2?'Localização indisponível no momento.':'Tempo esgotado ao obter localização.';status.textContent=msg;btn.disabled=false;btn.textContent='Usar localização atual';},{enableHighAccuracy:true,timeout:15000,maximumAge:30000});
   }
   function prepararLocalizadores(){
     const seletores=['#equipForm [name="local"]','#instalacaoForm [name="local_instalacao"]','#agendaInstalacaoForm [name="local_instalacao"]','input[name="localizacao"]','input[name="local"]'];
@@ -115,12 +128,15 @@
       if(input.dataset.geoPreparado==='1')return;input.dataset.geoPreparado='1';
       const wrap=document.createElement('div');wrap.className='geo-campo';
       const btn=document.createElement('button');btn.type='button';btn.className='geo-btn';btn.textContent='Usar localização atual';
-      const st=document.createElement('small');st.className='geo-status';st.textContent='Preenche latitude e longitude usando o GPS/localização do aparelho.';
-      btn.addEventListener('click',()=>capturarLocalizacao(input,btn,st));wrap.append(btn,st);
+      const mapa=document.createElement('button');mapa.type='button';mapa.className='geo-btn geo-map-btn';mapa.textContent='Abrir no mapa';mapa.disabled=!extrairCoordenadas(input.value);
+      const st=document.createElement('small');st.className='geo-status';st.textContent='Use o GPS/localização do aparelho e confira o ponto no mapa.';
+      btn.addEventListener('click',()=>capturarLocalizacao(input,btn,st,mapa));mapa.addEventListener('click',()=>abrirNoMapa(input,st));
+      input.addEventListener('input',()=>{mapa.disabled=!extrairCoordenadas(input.value);});
+      wrap.append(btn,mapa,st);
       const label=input.closest('label');if(label)label.insertAdjacentElement('afterend',wrap);else input.insertAdjacentElement('afterend',wrap);
     });
   }
 
-  const css=document.createElement('style');css.textContent='.trt-preview{margin-top:12px;border:1px solid #cfe0d7;border-radius:10px;background:#fff;overflow:hidden}.trt-preview-head{padding:10px 12px;background:#f1f7f4;display:flex;justify-content:space-between;gap:10px;align-items:center;color:#176b45}.trt-preview-head span{font-size:11px;color:#52645b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.trt-preview iframe{display:block;width:100%;height:min(72vh,760px);border:0;background:#eef3f0}.trt-preview-status{padding:14px;color:#52645b;font-size:12px}.geo-campo{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:-3px 0 10px}.geo-btn{border:1px solid #176b45;background:#f1f7f4;color:#176b45;border-radius:7px;padding:8px 11px;font-weight:700;cursor:pointer}.geo-btn:disabled{opacity:.65;cursor:wait}.geo-status{color:#64736c;font-size:11px;line-height:1.3}@media(max-width:700px){.trt-preview iframe{height:68vh}.geo-campo{align-items:stretch}.geo-btn{width:100%}}';document.head.appendChild(css);
+  const css=document.createElement('style');css.textContent='.trt-preview{margin-top:12px;border:1px solid #cfe0d7;border-radius:10px;background:#fff;overflow:hidden}.trt-preview-head{padding:10px 12px;background:#f1f7f4;display:flex;justify-content:space-between;gap:10px;align-items:center;color:#176b45}.trt-preview-head span{font-size:11px;color:#52645b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.trt-preview iframe{display:block;width:100%;height:min(72vh,760px);border:0;background:#eef3f0}.trt-preview-status{padding:14px;color:#52645b;font-size:12px}.geo-campo{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:-3px 0 10px}.geo-btn{border:1px solid #176b45;background:#f1f7f4;color:#176b45;border-radius:7px;padding:8px 11px;font-weight:700;cursor:pointer}.geo-map-btn{background:#176b45;color:#fff}.geo-btn:disabled{opacity:.5;cursor:not-allowed}.geo-status{color:#64736c;font-size:11px;line-height:1.3;flex-basis:100%}@media(max-width:700px){.trt-preview iframe{height:68vh}.geo-campo{align-items:stretch}.geo-btn{width:100%}}';document.head.appendChild(css);
   prepararLocalizadores();new MutationObserver(prepararLocalizadores).observe(document.body,{childList:true,subtree:true});setTimeout(prepararLocalizadores,500);
 })();
