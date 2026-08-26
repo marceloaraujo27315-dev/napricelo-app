@@ -12,7 +12,14 @@
     if(!r.ok)throw new Error(await r.text());
     return (await r.json())[0]||null;
   }
-  function manutIdDaOS(os){const c=os?.checklist;return c&&typeof c==='object'?Number(c.pop_manutencao_id||0):0}
+  function manutIdDaOS(os){
+    const c=os?.checklist;
+    const direto=c&&typeof c==='object'?Number(c.pop_manutencao_id||0):0;
+    if(direto)return direto;
+    const texto=String(os?.observacoes||'');
+    const m=texto.match(/Registro de manuten(?:ç|c)[aã]o:\s*(\d+)/i);
+    return m?Number(m[1]):0;
+  }
   function incluirNoHistorico(x){
     if(!x)return;
     try{
@@ -23,17 +30,52 @@
       }
     }catch(_){ }
   }
+  async function localizarManutencaoLegada(os,agendaId){
+    const a=agenda().find(x=>Number(x.id)===Number(agendaId));
+    const equipamentoId=Number(os?.equipamento_id||0);
+    const dataAlvo=String(os?.data_fim||os?.data_inicio||a?.data_agendada||'').slice(0,10);
+    let filtros=[];
+    if(equipamentoId)filtros.push(`equipamento_id=eq.${equipamentoId}`);
+    if(dataAlvo)filtros.push(`data=eq.${encodeURIComponent(dataAlvo)}`);
+    if(!filtros.length)return null;
+    let url=`${SUPABASE_URL}/rest/v1/manutencoes?select=*&${filtros.join('&')}&order=id.desc&limit=5`;
+    let r=await fetch(url,{headers:SUPABASE_HEADERS});
+    if(!r.ok)throw new Error(await r.text());
+    let lista=await r.json();
+    if(!lista.length&&equipamentoId&&dataAlvo){
+      r=await fetch(`${SUPABASE_URL}/rest/v1/manutencoes?select=*&equipamento_id=eq.${equipamentoId}&order=id.desc&limit=5`,{headers:SUPABASE_HEADERS});
+      if(!r.ok)throw new Error(await r.text());
+      lista=await r.json();
+    }
+    if(!lista.length)return null;
+    const resp=String(os?.responsavel_execucao||a?.responsavel||a?.responsavel_tecnico||'').trim().toLowerCase();
+    const porResp=resp?lista.find(x=>String(x.tecnico||'').trim().toLowerCase()===resp):null;
+    return porResp||lista[0]||null;
+  }
+  async function gravarVinculoRecuperado(os,manut){
+    if(!os?.id||!manut?.id)return;
+    try{
+      const checklist={...(os.checklist&&typeof os.checklist==='object'?os.checklist:{}),pop_manutencao_id:Number(manut.id),pop_equipamento_id:Number(manut.equipamento_id||os.equipamento_id||0),pop_executado:true,servico_executado_pop:true,vinculo_pop_recuperado:true};
+      await fetch(`${SUPABASE_URL}/rest/v1/ordens_servico?id=eq.${Number(os.id)}`,{method:'PATCH',headers:{...SUPABASE_HEADERS,Prefer:'return=minimal'},body:JSON.stringify({checklist})});
+      os.checklist=checklist;
+    }catch(e){console.warn('Vínculo do POP foi localizado, mas não pôde ser gravado na OS.',e)}
+  }
   async function obterExecucao(agendaId){
-    const os=await carregarOS(agendaId),mid=manutIdDaOS(os);
+    const os=await carregarOS(agendaId);
     if(!os)return {os:null,manut:null};
-    if(!mid)return {os,manut:null};
-    const manut=await carregarManutencao(mid);incluirNoHistorico(manut);return {os,manut};
+    let mid=manutIdDaOS(os),manut=mid?await carregarManutencao(mid):null;
+    if(!manut){
+      manut=await localizarManutencaoLegada(os,agendaId);
+      if(manut)await gravarVinculoRecuperado(os,manut);
+    }
+    incluirNoHistorico(manut);
+    return {os,manut};
   }
   window.visualizarExecucaoOS=async function(agendaId){
     try{
       const {os,manut}=await obterExecucao(agendaId);
       if(!os)return alert('Ordem de serviço não encontrada.');
-      if(!manut)return alert('Esta OS está concluída, mas o vínculo com o registro do POP não foi localizado.');
+      if(!manut)return alert('Não foi possível localizar o registro do POP desta OS.');
       const corpo=typeof conteudoManutencao==='function'?conteudoManutencao(manut,false):`<div class="detail-head"><small>EXECUÇÃO CONCLUÍDA</small><h2>${escLocal(manut.codigo||'Equipamento')}</h2></div><p>Registro #${Number(manut.id)}</p>`;
       abrirFicha(`${corpo}<div class="os-resgate-acoes"><button type="button" class="action" onclick="resgatarExecucaoOS(${Number(agendaId)})">Resgatar para alteração</button><button type="button" class="action" onclick="gerarRelatorioTecnicoOS(${Number(agendaId)})">Relatório técnico / PDF</button></div><div class="os-resgate-aviso"><b>Execução preservada</b><span>Use “Resgatar para alteração” somente quando precisar corrigir o registro já concluído. A correção atualiza esta mesma execução e não cria outra.</span></div>`);
     }catch(e){console.error(e);alert('Não foi possível abrir a execução concluída. Verifique a conexão e tente novamente.');}
