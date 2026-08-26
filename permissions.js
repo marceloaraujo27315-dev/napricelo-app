@@ -18,4 +18,6 @@ function label(){let el=document.getElementById('profileBadge');if(!el){el=docum
 async function init(){const r=await loadRole();if(!r?.ativo){state.perfil=null;state.ativo=false;return}state.perfil=r.perfil;state.ativo=true;window.NAPRICELO_PERFIL=r.perfil;applyCards();applyReadOnly();label();setTimeout(applyCards,800);setTimeout(applyCards,1800)}
 const mo=new MutationObserver(()=>{if(state.perfil)applyCards()});mo.observe(document.documentElement,{childList:true,subtree:true});
 window.addEventListener('load',()=>setTimeout(init,500));window.addEventListener('napricelo-auth-changed',()=>setTimeout(init,250));
+function loadExtra(src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[src*="${src}"]`))return resolve();const s=document.createElement('script');s.src=`${src}?v=65`;s.onload=resolve;s.onerror=reject;document.body.appendChild(s);});}
+window.addEventListener('load',()=>setTimeout(()=>{Promise.resolve().then(()=>loadExtra('comercial-edicao.js')).then(()=>loadExtra('correcao-v63.js')).then(()=>loadExtra('share-proposta-main.js')).catch(e=>console.warn('Falha ao carregar recursos comerciais adicionais',e));},900));
 })();
