@@ -1,174 +1,29 @@
 let clientesCache=[];
 let unidadesCache=[];
 let cadastroSalvando=false;
-
-async function buscarTabelaCadastro(tabela,ordem="id.asc"){
-  const r=await fetch(`${SUPABASE_URL}/rest/v1/${tabela}?select=*&order=${ordem}`,{headers:SUPABASE_HEADERS});
-  if(!r.ok) throw new Error(await r.text());
-  return r.json();
-}
-
-async function carregarClientesUnidades(){
-  const lista=document.getElementById("listaClientesUnidades");
-  if(lista) lista.innerHTML="<p>Carregando clientes e unidades...</p>";
-  try{
-    [clientesCache,unidadesCache]=await Promise.all([
-      buscarTabelaCadastro("clientes","nome.asc"),
-      buscarTabelaCadastro("unidades","nome.asc")
-    ]);
-    atualizarSelectsClientes();
-    renderClientesUnidades();
-  }catch(err){
-    console.error(err);
-    if(lista) lista.innerHTML="<p>Não foi possível carregar clientes e unidades. Verifique a internet.</p>";
-  }
-}
-
-function mostrarCadastroCliente(){
-  document.getElementById("clienteForm").style.display="block";
-  document.getElementById("unidadeForm").style.display="none";
-}
-function mostrarCadastroUnidade(){
-  document.getElementById("clienteForm").style.display="none";
-  document.getElementById("unidadeForm").style.display="block";
-  atualizarSelectsClientes();
-}
-
-function atualizarSelectsClientes(){
-  const uc=document.getElementById("unidadeCliente");
-  const ec=document.getElementById("equipClienteSelect");
-  const eu=document.getElementById("equipUnidadeSelect");
-  if(uc){const atual=uc.value;uc.innerHTML='<option value="">Selecione...</option>'+clientesCache.map(c=>`<option value="${c.id}">${escHtml(c.nome)}</option>`).join("");if(atual)uc.value=atual;}
-  if(ec){const atual=ec.value;ec.innerHTML='<option value="">Preencher manualmente</option>'+clientesCache.map(c=>`<option value="${c.id}">${escHtml(c.nome)}</option>`).join("");if(atual)ec.value=atual;}
-  if(eu){eu.innerHTML='<option value="">Sem unidade / preencher manualmente</option>';if(ec&&ec.value)preencherUnidadesEquipamento();}
-}
+async function buscarTabelaCadastro(tabela,ordem="id.asc"){const r=await fetch(`${SUPABASE_URL}/rest/v1/${tabela}?select=*&order=${ordem}`,{headers:SUPABASE_HEADERS});if(!r.ok)throw new Error(await r.text());return r.json();}
+async function carregarClientesUnidades(){const lista=document.getElementById("listaClientesUnidades");if(lista)lista.innerHTML="<p>Carregando clientes e unidades...</p>";try{[clientesCache,unidadesCache]=await Promise.all([buscarTabelaCadastro("clientes","nome.asc"),buscarTabelaCadastro("unidades","nome.asc")]);atualizarSelectsClientes();renderClientesUnidades();}catch(err){console.error(err);if(lista)lista.innerHTML="<p>Não foi possível carregar clientes e unidades. Verifique a internet.</p>";}}
+function mostrarCadastroCliente(){document.getElementById("clienteForm").style.display="block";document.getElementById("unidadeForm").style.display="none";}
+function mostrarCadastroUnidade(){document.getElementById("clienteForm").style.display="none";document.getElementById("unidadeForm").style.display="block";atualizarSelectsClientes();}
+function nomeExibicao(c){return c?.nome_fantasia?.trim()||c?.nome||"";}
+function rotuloCliente(c){const f=c?.nome_fantasia?.trim();return f&&f!==c.nome?`${f} — ${c.nome}`:(c.nome||"");}
+function atualizarSelectsClientes(){const uc=document.getElementById("unidadeCliente"),ec=document.getElementById("equipClienteSelect"),eu=document.getElementById("equipUnidadeSelect");if(uc){const atual=uc.value;uc.innerHTML='<option value="">Selecione...</option>'+clientesCache.map(c=>`<option value="${c.id}">${escHtml(rotuloCliente(c))}</option>`).join("");if(atual)uc.value=atual;}if(ec){const atual=ec.value;ec.innerHTML='<option value="">Preencher manualmente</option>'+clientesCache.map(c=>`<option value="${c.id}">${escHtml(rotuloCliente(c))}</option>`).join("");if(atual)ec.value=atual;}if(eu){eu.innerHTML='<option value="">Sem unidade / preencher manualmente</option>';if(ec&&ec.value)preencherUnidadesEquipamento();}}
 function escHtml(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function mesmoTexto(a,b){return String(a||"").trim().toLocaleLowerCase("pt-BR")===String(b||"").trim().toLocaleLowerCase("pt-BR");}
-
-function renderClientesUnidades(){
-  const el=document.getElementById("listaClientesUnidades");
-  if(!el)return;
-  if(!clientesCache.length){el.innerHTML="<p>Nenhum cliente cadastrado ainda.</p>";return;}
-  el.innerHTML=clientesCache.map(c=>{
-    const us=unidadesCache.filter(u=>Number(u.cliente_id)===Number(c.id));
-    return `<div class="record client-record"><div class="record-head"><div><b>${escHtml(c.nome)}</b><small>${escHtml(c.documento||"")}${c.municipio?" • "+escHtml(c.municipio):""}</small>${c.responsavel?`<small>Contato: ${escHtml(c.responsavel)}</small>`:""}</div><div class="mini-actions"><button onclick="editarCliente(${c.id})">Editar</button><button class="danger" onclick="excluirCliente(${c.id})">Excluir</button></div></div>${us.length?`<div class="unit-list">${us.map(u=>`<div class="autobox unit-card"><div><b>${escHtml(u.nome)}</b><br>${escHtml(u.municipio||"")}${u.endereco?" • "+escHtml(u.endereco):""}</div><div class="mini-actions"><button onclick="editarUnidade(${u.id})">Editar</button><button class="danger" onclick="excluirUnidade(${u.id})">Excluir</button></div></div>`).join("")}</div>`:'<small>Nenhuma unidade cadastrada.</small>'}</div>`;
-  }).join("");
-}
-
-async function salvarRegistroCadastro(tabela,payload){
-  const r=await fetch(`${SUPABASE_URL}/rest/v1/${tabela}`,{method:"POST",headers:{...SUPABASE_HEADERS,Prefer:"return=representation"},body:JSON.stringify(payload)});
-  if(!r.ok)throw new Error(await r.text());
-  return (await r.json())[0];
-}
-async function atualizarRegistroCadastro(tabela,id,payload){
-  const r=await fetch(`${SUPABASE_URL}/rest/v1/${tabela}?id=eq.${Number(id)}`,{method:"PATCH",headers:{...SUPABASE_HEADERS,Prefer:"return=representation"},body:JSON.stringify(payload)});
-  if(!r.ok)throw new Error(await r.text());
-  return (await r.json())[0];
-}
-async function excluirRegistroCadastro(tabela,id){
-  const r=await fetch(`${SUPABASE_URL}/rest/v1/${tabela}?id=eq.${Number(id)}`,{method:"DELETE",headers:{...SUPABASE_HEADERS,Prefer:"return=minimal"}});
-  if(!r.ok)throw new Error(await r.text());
-}
+function renderClientesUnidades(){const el=document.getElementById("listaClientesUnidades");if(!el)return;if(!clientesCache.length){el.innerHTML="<p>Nenhum cliente cadastrado ainda.</p>";return;}el.innerHTML=clientesCache.map(c=>{const us=unidadesCache.filter(u=>Number(u.cliente_id)===Number(c.id));return `<div class="record client-record"><div class="record-head"><div><b>${escHtml(nomeExibicao(c))}</b>${c.nome_fantasia?`<small>Razão social: ${escHtml(c.nome)}</small>`:""}<small>${escHtml(c.documento||"")}${c.municipio?" • "+escHtml(c.municipio):""}</small>${c.responsavel?`<small>Contato: ${escHtml(c.responsavel)}</small>`:""}</div><div class="mini-actions"><button onclick="editarCliente(${c.id})">Editar</button><button class="danger" onclick="excluirCliente(${c.id})">Excluir</button></div></div>${us.length?`<div class="unit-list">${us.map(u=>`<div class="autobox unit-card"><div><b>${escHtml(u.nome)}</b><br>${escHtml(u.municipio||"")}${u.endereco?" • "+escHtml(u.endereco):""}</div><div class="mini-actions"><button onclick="editarUnidade(${u.id})">Editar</button><button class="danger" onclick="excluirUnidade(${u.id})">Excluir</button></div></div>`).join("")}</div>`:'<small>Nenhuma unidade cadastrada.</small>'}</div>`;}).join("");}
+async function salvarRegistroCadastro(tabela,payload){const r=await fetch(`${SUPABASE_URL}/rest/v1/${tabela}`,{method:"POST",headers:{...SUPABASE_HEADERS,Prefer:"return=representation"},body:JSON.stringify(payload)});if(!r.ok)throw new Error(await r.text());return(await r.json())[0];}
+async function atualizarRegistroCadastro(tabela,id,payload){const r=await fetch(`${SUPABASE_URL}/rest/v1/${tabela}?id=eq.${Number(id)}`,{method:"PATCH",headers:{...SUPABASE_HEADERS,Prefer:"return=representation"},body:JSON.stringify(payload)});if(!r.ok)throw new Error(await r.text());return(await r.json())[0];}
+async function excluirRegistroCadastro(tabela,id){const r=await fetch(`${SUPABASE_URL}/rest/v1/${tabela}?id=eq.${Number(id)}`,{method:"DELETE",headers:{...SUPABASE_HEADERS,Prefer:"return=minimal"}});if(!r.ok)throw new Error(await r.text());}
 function erroDuplicado(err){return /duplicate key|unique constraint|23505/i.test(String(err?.message||err));}
-
-function travarFormulario(form,travado,texto="Salvando..."){
-  const btn=form.querySelector('button[type="submit"],button.primary');
-  if(!btn)return;
-  if(travado){btn.dataset.textoOriginal=btn.textContent;btn.textContent=texto;btn.disabled=true;}else{btn.textContent=btn.dataset.textoOriginal||btn.textContent;btn.disabled=false;}
-}
-
-document.getElementById("clienteForm")?.addEventListener("submit",async e=>{
-  e.preventDefault();
-  if(cadastroSalvando)return;
-  const o=Object.fromEntries(new FormData(e.target));
-  if(clientesCache.some(c=>mesmoTexto(c.nome,o.nome)))return alert("Já existe um cliente com esse nome.");
-  cadastroSalvando=true;travarFormulario(e.target,true);
-  try{
-    const salvo=await salvarRegistroCadastro("clientes",{
-      nome:o.nome.trim(),documento:o.documento||null,municipio:o.municipio||null,endereco:o.endereco||null,
-      responsavel:o.responsavel||null,telefone:o.telefone||null,email:o.email||null,observacoes:o.observacoes||null
-    });
-    clientesCache.push(salvo);clientesCache.sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
-    atualizarSelectsClientes();renderClientesUnidades();e.target.reset();
-    alert("Cliente salvo na nuvem.");
-  }catch(err){console.error(err);alert(erroDuplicado(err)?"Já existe um cliente com esse nome.":"Não foi possível salvar o cliente.");}
-  finally{cadastroSalvando=false;travarFormulario(e.target,false);}
-});
-
-document.getElementById("unidadeForm")?.addEventListener("submit",async e=>{
-  e.preventDefault();
-  if(cadastroSalvando)return;
-  const o=Object.fromEntries(new FormData(e.target));
-  const cid=Number(o.cliente_id),nome=o.nome.trim();
-  if(unidadesCache.some(u=>Number(u.cliente_id)===cid&&mesmoTexto(u.nome,nome)))return alert("Essa unidade já está cadastrada para este cliente.");
-  cadastroSalvando=true;travarFormulario(e.target,true);
-  try{
-    const salvo=await salvarRegistroCadastro("unidades",{
-      cliente_id:cid,nome,municipio:o.municipio||null,endereco:o.endereco||null,
-      responsavel:o.responsavel||null,observacoes:o.observacoes||null
-    });
-    unidadesCache.push(salvo);unidadesCache.sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
-    renderClientesUnidades();e.target.reset();atualizarSelectsClientes();
-    alert("Unidade salva na nuvem.");
-  }catch(err){console.error(err);alert(erroDuplicado(err)?"Essa unidade já está cadastrada para este cliente.":"Não foi possível salvar a unidade.");}
-  finally{cadastroSalvando=false;travarFormulario(e.target,false);}
-});
-
-async function editarCliente(id){
-  const c=clientesCache.find(x=>Number(x.id)===Number(id));if(!c)return;
-  const nome=prompt("Nome do cliente / empreendimento:",c.nome||"");if(nome===null)return;if(!nome.trim())return alert("O nome não pode ficar vazio.");
-  if(clientesCache.some(x=>Number(x.id)!==Number(id)&&mesmoTexto(x.nome,nome)))return alert("Já existe outro cliente com esse nome.");
-  const documento=prompt("CNPJ / CPF:",c.documento||"");if(documento===null)return;
-  const municipio=prompt("Município:",c.municipio||"");if(municipio===null)return;
-  const endereco=prompt("Endereço:",c.endereco||"");if(endereco===null)return;
-  const responsavel=prompt("Responsável / contato:",c.responsavel||"");if(responsavel===null)return;
-  try{const salvo=await atualizarRegistroCadastro("clientes",id,{nome:nome.trim(),documento:documento||null,municipio:municipio||null,endereco:endereco||null,responsavel:responsavel||null});Object.assign(c,salvo);clientesCache.sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));atualizarSelectsClientes();renderClientesUnidades();alert("Cliente atualizado.");}catch(err){console.error(err);alert(erroDuplicado(err)?"Já existe outro cliente com esse nome.":"Não foi possível atualizar o cliente.");}
-}
-async function excluirCliente(id){
-  const c=clientesCache.find(x=>Number(x.id)===Number(id));if(!c)return;
-  const vinculadas=unidadesCache.filter(u=>Number(u.cliente_id)===Number(id));
-  if(vinculadas.length)return alert(`Este cliente possui ${vinculadas.length} unidade(s). Exclua ou transfira as unidades antes de excluir o cliente.`);
-  if(!confirm(`Excluir o cliente "${c.nome}"?`))return;
-  try{await excluirRegistroCadastro("clientes",id);clientesCache=clientesCache.filter(x=>Number(x.id)!==Number(id));atualizarSelectsClientes();renderClientesUnidades();alert("Cliente excluído.");}catch(err){console.error(err);alert("Não foi possível excluir o cliente.");}
-}
-async function editarUnidade(id){
-  const u=unidadesCache.find(x=>Number(x.id)===Number(id));if(!u)return;
-  const nome=prompt("Nome da unidade / propriedade:",u.nome||"");if(nome===null)return;if(!nome.trim())return alert("O nome não pode ficar vazio.");
-  if(unidadesCache.some(x=>Number(x.id)!==Number(id)&&Number(x.cliente_id)===Number(u.cliente_id)&&mesmoTexto(x.nome,nome)))return alert("Já existe outra unidade com esse nome para este cliente.");
-  const municipio=prompt("Município:",u.municipio||"");if(municipio===null)return;
-  const endereco=prompt("Endereço:",u.endereco||"");if(endereco===null)return;
-  const responsavel=prompt("Responsável local:",u.responsavel||"");if(responsavel===null)return;
-  try{const salvo=await atualizarRegistroCadastro("unidades",id,{nome:nome.trim(),municipio:municipio||null,endereco:endereco||null,responsavel:responsavel||null});Object.assign(u,salvo);unidadesCache.sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));atualizarSelectsClientes();renderClientesUnidades();alert("Unidade atualizada.");}catch(err){console.error(err);alert(erroDuplicado(err)?"Já existe outra unidade com esse nome para este cliente.":"Não foi possível atualizar a unidade.");}
-}
-async function excluirUnidade(id){
-  const u=unidadesCache.find(x=>Number(x.id)===Number(id));if(!u)return;
-  if(!confirm(`Excluir a unidade "${u.nome}"?`))return;
-  try{await excluirRegistroCadastro("unidades",id);unidadesCache=unidadesCache.filter(x=>Number(x.id)!==Number(id));atualizarSelectsClientes();renderClientesUnidades();alert("Unidade excluída.");}catch(err){console.error(err);alert("Não foi possível excluir a unidade.");}
-}
-
-function preencherUnidadesEquipamento(){
-  const ec=document.getElementById("equipClienteSelect"),eu=document.getElementById("equipUnidadeSelect");
-  if(!ec||!eu)return;
-  const cid=Number(ec.value);
-  const us=unidadesCache.filter(u=>Number(u.cliente_id)===cid);
-  eu.innerHTML='<option value="">Sem unidade / preencher manualmente</option>'+us.map(u=>`<option value="${u.id}">${escHtml(u.nome)}</option>`).join("");
-}
-function aplicarClienteNoEquipamento(){
-  const form=document.getElementById("equipForm"),ec=document.getElementById("equipClienteSelect"),box=document.getElementById("equipClienteAuto");
-  if(!form||!ec)return;
-  const c=clientesCache.find(x=>Number(x.id)===Number(ec.value));
-  preencherUnidadesEquipamento();
-  if(c){form.elements.cliente.value=c.nome||"";form.elements.unidade.value="";form.elements.municipio.value=c.municipio||"";box.innerHTML=`<b>${escHtml(c.nome)}</b><br>${escHtml(c.documento||"")}${c.municipio?" • "+escHtml(c.municipio):""}`;}else box.textContent="Preenchimento manual ativado.";
-}
-function aplicarUnidadeNoEquipamento(){
-  const form=document.getElementById("equipForm"),eu=document.getElementById("equipUnidadeSelect"),box=document.getElementById("equipClienteAuto");
-  if(!form||!eu)return;
-  const u=unidadesCache.find(x=>Number(x.id)===Number(eu.value));
-  if(u){form.elements.unidade.value=u.nome||"";if(u.municipio)form.elements.municipio.value=u.municipio;box.innerHTML+=`<br><b>Unidade:</b> ${escHtml(u.nome)}${u.municipio?" • "+escHtml(u.municipio):""}`;}
-}
-document.getElementById("equipClienteSelect")?.addEventListener("change",aplicarClienteNoEquipamento);
-document.getElementById("equipUnidadeSelect")?.addEventListener("change",aplicarUnidadeNoEquipamento);
-
-const showPageOriginal=window.showPage;
-window.showPage=function(id){showPageOriginal(id);if(id==="clientes")carregarClientesUnidades();if(id==="cadastro"&&!clientesCache.length)carregarClientesUnidades();};
-carregarClientesUnidades();
+function travarFormulario(form,travado,texto="Salvando..."){const btn=form.querySelector('button[type="submit"],button.primary');if(!btn)return;if(travado){btn.dataset.textoOriginal=btn.textContent;btn.textContent=texto;btn.disabled=true;}else{btn.textContent=btn.dataset.textoOriginal||btn.textContent;btn.disabled=false;}}
+document.getElementById("clienteForm")?.addEventListener("submit",async e=>{e.preventDefault();if(cadastroSalvando)return;const o=Object.fromEntries(new FormData(e.target));if(clientesCache.some(c=>mesmoTexto(c.nome,o.nome)))return alert("Já existe um cliente com essa razão social / nome.");cadastroSalvando=true;travarFormulario(e.target,true);try{const salvo=await salvarRegistroCadastro("clientes",{nome:o.nome.trim(),nome_fantasia:o.nome_fantasia?.trim()||null,documento:o.documento||null,municipio:o.municipio||null,endereco:o.endereco||null,responsavel:o.responsavel||null,telefone:o.telefone||null,email:o.email||null,observacoes:o.observacoes||null});clientesCache.push(salvo);clientesCache.sort((a,b)=>nomeExibicao(a).localeCompare(nomeExibicao(b),"pt-BR"));atualizarSelectsClientes();renderClientesUnidades();e.target.reset();alert("Cliente salvo na nuvem.");}catch(err){console.error(err);alert(erroDuplicado(err)?"Já existe um cliente com esse nome.":"Não foi possível salvar o cliente.");}finally{cadastroSalvando=false;travarFormulario(e.target,false);}});
+document.getElementById("unidadeForm")?.addEventListener("submit",async e=>{e.preventDefault();if(cadastroSalvando)return;const o=Object.fromEntries(new FormData(e.target)),cid=Number(o.cliente_id),nome=o.nome.trim();if(unidadesCache.some(u=>Number(u.cliente_id)===cid&&mesmoTexto(u.nome,nome)))return alert("Essa unidade já está cadastrada para este cliente.");cadastroSalvando=true;travarFormulario(e.target,true);try{const salvo=await salvarRegistroCadastro("unidades",{cliente_id:cid,nome,municipio:o.municipio||null,endereco:o.endereco||null,responsavel:o.responsavel||null,observacoes:o.observacoes||null});unidadesCache.push(salvo);unidadesCache.sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));renderClientesUnidades();e.target.reset();atualizarSelectsClientes();alert("Unidade salva na nuvem.");}catch(err){console.error(err);alert(erroDuplicado(err)?"Essa unidade já está cadastrada para este cliente.":"Não foi possível salvar a unidade.");}finally{cadastroSalvando=false;travarFormulario(e.target,false);}});
+async function editarCliente(id){const c=clientesCache.find(x=>Number(x.id)===Number(id));if(!c)return;const nome=prompt("Nome / razão social:",c.nome||"");if(nome===null)return;if(!nome.trim())return alert("O nome não pode ficar vazio.");if(clientesCache.some(x=>Number(x.id)!==Number(id)&&mesmoTexto(x.nome,nome)))return alert("Já existe outro cliente com esse nome.");const fantasia=prompt("Nome fantasia (opcional):",c.nome_fantasia||"");if(fantasia===null)return;const documento=prompt("CNPJ / CPF:",c.documento||"");if(documento===null)return;const municipio=prompt("Município:",c.municipio||"");if(municipio===null)return;const endereco=prompt("Endereço:",c.endereco||"");if(endereco===null)return;const responsavel=prompt("Responsável / contato:",c.responsavel||"");if(responsavel===null)return;try{const salvo=await atualizarRegistroCadastro("clientes",id,{nome:nome.trim(),nome_fantasia:fantasia.trim()||null,documento:documento||null,municipio:municipio||null,endereco:endereco||null,responsavel:responsavel||null});Object.assign(c,salvo);clientesCache.sort((a,b)=>nomeExibicao(a).localeCompare(nomeExibicao(b),"pt-BR"));atualizarSelectsClientes();renderClientesUnidades();alert("Cliente atualizado.");}catch(err){console.error(err);alert(erroDuplicado(err)?"Já existe outro cliente com esse nome.":"Não foi possível atualizar o cliente.");}}
+async function excluirCliente(id){const c=clientesCache.find(x=>Number(x.id)===Number(id));if(!c)return;const vinculadas=unidadesCache.filter(u=>Number(u.cliente_id)===Number(id));if(vinculadas.length)return alert(`Este cliente possui ${vinculadas.length} unidade(s). Exclua ou transfira as unidades antes de excluir o cliente.`);if(!confirm(`Excluir o cliente "${nomeExibicao(c)}"?`))return;try{await excluirRegistroCadastro("clientes",id);clientesCache=clientesCache.filter(x=>Number(x.id)!==Number(id));atualizarSelectsClientes();renderClientesUnidades();alert("Cliente excluído.");}catch(err){console.error(err);alert("Não foi possível excluir o cliente.");}}
+async function editarUnidade(id){const u=unidadesCache.find(x=>Number(x.id)===Number(id));if(!u)return;const nome=prompt("Nome da unidade / propriedade:",u.nome||"");if(nome===null)return;if(!nome.trim())return alert("O nome não pode ficar vazio.");if(unidadesCache.some(x=>Number(x.id)!==Number(id)&&Number(x.cliente_id)===Number(u.cliente_id)&&mesmoTexto(x.nome,nome)))return alert("Já existe outra unidade com esse nome para este cliente.");const municipio=prompt("Município:",u.municipio||"");if(municipio===null)return;const endereco=prompt("Endereço:",u.endereco||"");if(endereco===null)return;const responsavel=prompt("Responsável local:",u.responsavel||"");if(responsavel===null)return;try{const salvo=await atualizarRegistroCadastro("unidades",id,{nome:nome.trim(),municipio:municipio||null,endereco:endereco||null,responsavel:responsavel||null});Object.assign(u,salvo);unidadesCache.sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));atualizarSelectsClientes();renderClientesUnidades();alert("Unidade atualizada.");}catch(err){console.error(err);alert(erroDuplicado(err)?"Já existe outra unidade com esse nome para este cliente.":"Não foi possível atualizar a unidade.");}}
+async function excluirUnidade(id){const u=unidadesCache.find(x=>Number(x.id)===Number(id));if(!u)return;if(!confirm(`Excluir a unidade "${u.nome}"?`))return;try{await excluirRegistroCadastro("unidades",id);unidadesCache=unidadesCache.filter(x=>Number(x.id)!==Number(id));atualizarSelectsClientes();renderClientesUnidades();alert("Unidade excluída.");}catch(err){console.error(err);alert("Não foi possível excluir a unidade.");}}
+function preencherUnidadesEquipamento(){const ec=document.getElementById("equipClienteSelect"),eu=document.getElementById("equipUnidadeSelect");if(!ec||!eu)return;const cid=Number(ec.value),us=unidadesCache.filter(u=>Number(u.cliente_id)===cid);eu.innerHTML='<option value="">Sem unidade / preencher manualmente</option>'+us.map(u=>`<option value="${u.id}">${escHtml(u.nome)}</option>`).join("");}
+function aplicarClienteNoEquipamento(){const form=document.getElementById("equipForm"),ec=document.getElementById("equipClienteSelect"),box=document.getElementById("equipClienteAuto");if(!form||!ec)return;const c=clientesCache.find(x=>Number(x.id)===Number(ec.value));preencherUnidadesEquipamento();if(c){form.elements.cliente.value=nomeExibicao(c)||"";form.elements.unidade.value="";form.elements.municipio.value=c.municipio||"";box.innerHTML=`<b>${escHtml(nomeExibicao(c))}</b>${c.nome_fantasia?`<br>Razão social: ${escHtml(c.nome)}`:""}<br>${escHtml(c.documento||"")}${c.municipio?" • "+escHtml(c.municipio):""}`;}else box.textContent="Preenchimento manual ativado.";}
+function aplicarUnidadeNoEquipamento(){const form=document.getElementById("equipForm"),eu=document.getElementById("equipUnidadeSelect"),box=document.getElementById("equipClienteAuto");if(!form||!eu)return;const u=unidadesCache.find(x=>Number(x.id)===Number(eu.value));if(u){form.elements.unidade.value=u.nome||"";if(u.municipio)form.elements.municipio.value=u.municipio;box.innerHTML+=`<br><b>Unidade:</b> ${escHtml(u.nome)}${u.municipio?" • "+escHtml(u.municipio):""}`;}}
+document.getElementById("equipClienteSelect")?.addEventListener("change",aplicarClienteNoEquipamento);document.getElementById("equipUnidadeSelect")?.addEventListener("change",aplicarUnidadeNoEquipamento);
+const showPageOriginal=window.showPage;window.showPage=function(id){showPageOriginal(id);if(id==="clientes")carregarClientesUnidades();if(id==="cadastro"&&!clientesCache.length)carregarClientesUnidades();};carregarClientesUnidades();
