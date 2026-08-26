@@ -1,7 +1,8 @@
 (()=>{
 const DB='napricelo_offline_v1',STORE='queue';
 const NATIVE_FETCH=window.fetch.bind(window);
-const ALLOWED_TABLES=['manutencoes','analises','instalacoes','ordens_servico','agendamentos_servicos'];
+// Cadastros de cliente/unidade também precisam funcionar em campo sem sinal.
+const ALLOWED_TABLES=['clientes','unidades','manutencoes','analises','instalacoes','ordens_servico','agendamentos_servicos'];
 function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(STORE))r.result.createObjectStore(STORE,{keyPath:'id',autoIncrement:true})};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
 async function addQueue(item){const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).add(item);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}
 async function allQueue(){const db=await openDB();return new Promise((res,rej)=>{const r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error)})}
