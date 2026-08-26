@@ -5,7 +5,24 @@
     if(!s)return '';
     const puro=s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     if(/^(offline|online|null|undefined|nan|n\/a|nao informado|não informado|sem informacao|sem informação|-|—)$/i.test(puro))return '';
+    // Não levar para o relatório valores técnicos de armazenamento, links de arquivos ou carimbos internos.
+    if(/^https?:\/\//i.test(s))return '';
+    if(/^data:/i.test(s))return '';
+    if(/^blob:/i.test(s))return '';
+    if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?$/i.test(s))return '';
+    if(/supabase\.co\/storage\/v1\/object/i.test(s))return '';
     return s;
+  }
+
+  function fraseInterna(x){
+    const t=String(x||'').trim();
+    if(!t)return true;
+    if(/(^|\s)https?:\/\//i.test(t))return true;
+    if(/supabase\.co\/storage\/v1\/object/i.test(t))return true;
+    if(/(^|\s)(blob:|data:application|data:image)/i.test(t))return true;
+    if(/(^|\s)\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?(\s|$)/i.test(t))return true;
+    if(/(^|\b)(offline|online|null|undefined|nan)(\b|$)/i.test(t))return true;
+    return false;
   }
 
   function limparFrasesInternas(v){
@@ -15,7 +32,7 @@
       .split(/(?<=[.!?])\s+|\n+/)
       .map(x=>x.trim())
       .filter(Boolean)
-      .filter(x=>!/(^|\b)(offline|online|null|undefined|nan)(\b|$)/i.test(x));
+      .filter(x=>!fraseInterna(x));
     return partes.join(' ').trim();
   }
 
@@ -23,6 +40,8 @@
     if(!campos||typeof campos!=='object')return campos;
     const out={};
     Object.entries(campos).forEach(([k,v])=>{
+      // Metadados de anexos nunca devem ser usados como conteúdo narrativo do relatório.
+      if(/(?:^|_)(?:foto|arquivo|anexo|pdf|url|storage|upload|enviado|anexado|timestamp|created|updated)(?:_|$)/i.test(String(k)))return;
       const limpo=limparFrasesInternas(v);
       if(limpo)out[k]=limpo;
     });
