@@ -28,3 +28,10 @@
     marcarInicioOS(Number(m[1]));
   },true);
 })();
+(function(){
+  if(document.querySelector('script[data-os-resgate-execucao]'))return;
+  const s=document.createElement('script');
+  s.src='os-resgate-execucao.js?v=1';
+  s.dataset.osResgateExecucao='1';
+  document.head.appendChild(s);
+})();
