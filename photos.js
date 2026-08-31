@@ -59,15 +59,24 @@ function prepararFotosManutencao(){
       o.checks=[...f.querySelectorAll('input[type="checkbox"]')].map(x=>x.checked);
       const btn=f.querySelector("button.primary");
       try{
-        if(btn){btn.disabled=true;btn.textContent=editando?"Salvando alterações...":"Enviando fotos e salvando...";}
+        if(btn){btn.disabled=true;btn.textContent=editando?"Salvando alterações...":"Sincronizando fotos e salvando...";}
         const fotos={};
-        for(const inp of [...f.querySelectorAll('input[type="file"]')]){const file=inp.files?.[0];if(file)fotos[inp.dataset.etapa]=await uploadFotoManutencao(file,eq.codigo,inp.dataset.etapa);}
+        for(const inp of [...f.querySelectorAll('input[type="file"]')]){
+          let url=inp.dataset.cloudUrl||null;
+          if(window.NAP_PHOTO_AUTOSAVE?.ensureUploaded){
+            try{url=await window.NAP_PHOTO_AUTOSAVE.ensureUploaded(inp,eq.codigo)||url;}catch(e){console.warn('Falha ao sincronizar rascunho da foto',e);}
+          }
+          const file=inp.files?.[0];
+          if(!url&&file)url=await uploadFotoManutencao(file,eq.codigo,inp.dataset.etapa);
+          if(url)fotos[inp.dataset.etapa]=url;
+        }
         const salvo=await salvarManutencaoComFotos(o,eq,fotos);
         const a=db.get("manut");
         if(editando){const i=a.findIndex(x=>Number(x.id)===Number(salvo.id));if(i>=0)a[i]={...a[i],...o,...salvo};else a.push({...o,...salvo});}
         else a.push({...o,...salvo});
         db.set("manut",a);
         if(window.clienteFichaCache?.manut){const i=clienteFichaCache.manut.findIndex(x=>Number(x.id)===Number(salvo.id));if(i>=0)clienteFichaCache.manut[i]={...clienteFichaCache.manut[i],...o,...salvo};else clienteFichaCache.manut.unshift({...o,...salvo});}
+        if(window.NAP_PHOTO_AUTOSAVE?.clearForm)try{await window.NAP_PHOTO_AUTOSAVE.clearForm(f);}catch(_){ }
         if(editando){
           try{if(typeof cloudHistorico!=='undefined'){cloudHistorico.manut=cloudHistorico.manut||[];const i=cloudHistorico.manut.findIndex(x=>Number(x.id)===Number(salvo.id));if(i>=0)cloudHistorico.manut[i]=salvo;else cloudHistorico.manut.unshift(salvo);}}catch(_){ }
           sessionStorage.removeItem('napricelo_pop_edicao');
@@ -83,7 +92,7 @@ function prepararFotosManutencao(){
           if(!finalizouOS)alert(Object.keys(fotos).length?"Manutenção e fotos salvas na nuvem.":"Manutenção salva na nuvem.");
           f.reset();box.textContent="Selecione o equipamento.";showPage("home");
         }
-      }catch(err){console.error(err);alert(editando?"Não foi possível salvar as alterações da execução. Verifique a sessão e a internet e tente novamente.":"Não foi possível salvar a manutenção/fotos na nuvem. Verifique a sessão, a internet, o tamanho e o formato das imagens e tente novamente.");}
+      }catch(err){console.error(err);alert(editando?"Não foi possível salvar as alterações da execução. Verifique a sessão e a internet e tente novamente.":"Não foi possível salvar a manutenção. As fotos capturadas permanecem protegidas no aparelho e serão sincronizadas quando a conexão voltar.");}
       finally{if(btn){btn.disabled=false;btn.textContent=editando?"Salvar alterações da execução":"Salvar manutenção";}}
     },true);
   });
