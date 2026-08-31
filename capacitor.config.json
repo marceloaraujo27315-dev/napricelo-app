@@ -1,0 +1,11 @@
+{
+  "appId": "br.com.napricelo.campo",
+  "appName": "Napricelo Campo",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
