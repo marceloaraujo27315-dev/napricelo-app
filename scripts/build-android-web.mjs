@@ -26,7 +26,8 @@ let html=await readFile(indexPath,'utf8');
 const scriptsAndroid=[
   'responsaveis-campo-dinamicos.js',
   'venda-instalacao-os-fix.js',
-  'os-instalacao-route-hotfix.js'
+  'os-instalacao-route-hotfix.js',
+  'android-localizacao-nativa.js'
 ];
 for(const s of scriptsAndroid){
   if(!html.includes(s))html=html.replace('</body>',`<script src="${s}?android=1"></script></body>`);
