@@ -40,6 +40,23 @@ jobs:
       - name: Sincronizar Capacitor
         run: npx cap sync android
 
+      - name: Adicionar permissões Android
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/src/main/AndroidManifest.xml')
+          s=p.read_text()
+          perms=[
+            '<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />',
+            '<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />'
+          ]
+          for perm in perms:
+            if perm not in s:
+              s=s.replace('<application',perm+'\n    <application',1)
+          p.write_text(s)
+          print(p.read_text())
+          PY
+
       - name: Configurar Java
         uses: actions/setup-java@v4
         with:
