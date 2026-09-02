@@ -1,7 +1,7 @@
 let cloudHistorico={equip:[],manut:[],analises:[]};
 async function buscarHistoricoNuvem(tipo){const tabela=tipo==="equip"?"equipamentos":tipo==="manut"?"manutencoes":"analises";const ordem=tipo==="equip"?"id.asc":"created_at.desc";const r=await fetch(`${SUPABASE_URL}/rest/v1/${tabela}?select=*&order=${ordem}`,{headers:SUPABASE_HEADERS});if(!r.ok)throw new Error(`Supabase ${r.status}: ${await r.text()}`);const dados=await r.json();cloudHistorico[tipo]=dados;if(tipo==="equip"){equipCache=dados;db.set("equip",dados);refreshEquipSelectors();}else db.set(tipo,dados);return dados;}
 function formatarDataHistorico(v){if(!v)return "";if(/^\d{4}-\d{2}-\d{2}$/.test(v)){const[a,m,d]=v.split("-");return`${d}/${m}/${a}`;}const dt=new Date(v);return Number.isNaN(dt.getTime())?v:dt.toLocaleString("pt-BR");}
-function nomeTipoManut(tipo){return {biodigestor:"POP Biodigestor",gordura:"POP Caixa de Gordura",sao:"POP Água e Óleo"}[tipo]||tipo||"";}
+function nomeTipoManut(tipo){return {biodigestor:"POP Biodigestor",gordura:"POP Caixa de Gordura",sao:"POP Água e Óleo",ete_prodoeste_diario:"ETE Prodoeste — Checklist diário",ete_prodoeste_semanal:"ETE Prodoeste — Checklist semanal",ete_prodoeste_mensal:"ETE Prodoeste — Checklist mensal"}[tipo]||tipo||"";}
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function configManut(tipo){return (typeof configs!=="undefined"&&configs[tipo])?configs[tipo]:{checks:[],campos:[]};}
 function responsavelTecnico(nome){return (typeof RESPONSAVEIS_TECNICOS!=="undefined"&&RESPONSAVEIS_TECNICOS[nome])||{nome:nome||"Não informado",titulo:"Responsável Técnico",cft:""};}
