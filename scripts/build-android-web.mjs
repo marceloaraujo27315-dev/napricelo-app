@@ -18,9 +18,6 @@ for(const nome of await readdir(root)){
   await cp(origem,path.join(out,nome));
 }
 
-// No Android/Capacitor não há injeção do service worker da versão web.
-// Portanto, scripts de correção que precisam existir no app nativo são
-// incluídos diretamente no index empacotado.
 const indexPath=path.join(out,'index.html');
 let html=await readFile(indexPath,'utf8');
 const scriptsAndroid=[
@@ -30,7 +27,8 @@ const scriptsAndroid=[
   'venda-instalacao-os-fix.js',
   'os-instalacao-route-hotfix.js',
   'android-localizacao-nativa.js',
-  'registro-avancado-campo.js'
+  'registro-avancado-campo.js',
+  'registro-fotos-draft-bridge.js'
 ];
 for(const s of scriptsAndroid){
   if(!html.includes(s))html=html.replace('</body>',`<script src="${s}?android=1"></script></body>`);
