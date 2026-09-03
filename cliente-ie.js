@@ -5,3 +5,11 @@
   if(typeof editarCliente==='function'){editarCliente=async function(id){const c=clientesCache.find(x=>Number(x.id)===Number(id));if(!c)return;const nome=prompt('Nome do cliente / empreendimento:',c.nome||'');if(nome===null)return;if(!nome.trim())return alert('O nome não pode ficar vazio.');if(clientesCache.some(x=>Number(x.id)!==Number(id)&&mesmoTexto(x.nome,nome)))return alert('Já existe outro cliente com esse nome.');const documento=prompt('CNPJ / CPF:',c.documento||'');if(documento===null)return;const ie=prompt('Inscrição Estadual (quando houver):',c.inscricao_estadual||'');if(ie===null)return;const municipio=prompt('Município:',c.municipio||'');if(municipio===null)return;const endereco=prompt('Endereço:',c.endereco||'');if(endereco===null)return;const responsavel=prompt('Responsável / contato:',c.responsavel||'');if(responsavel===null)return;try{const salvo=await atualizarRegistroCadastro('clientes',id,{nome:nome.trim(),documento:documento||null,inscricao_estadual:ie||null,municipio:municipio||null,endereco:endereco||null,responsavel:responsavel||null});Object.assign(c,salvo);clientesCache.sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));atualizarSelectsClientes();renderClientesUnidades();alert('Cliente atualizado.');}catch(err){console.error(err);alert('Não foi possível atualizar o cliente.');}};}
   const baseRender=window.renderClientesUnidades;window.renderClientesUnidades=function(){baseRender();document.querySelectorAll('.client-record').forEach((el,i)=>{const c=clientesCache[i];if(c?.inscricao_estadual){const small=document.createElement('small');small.textContent='IE: '+c.inscricao_estadual;el.querySelector('.record-head > div')?.appendChild(small);}});};
 })();
+
+(function carregarAjustesPopEte(){
+  if(document.querySelector('script[data-ete-pop-ajustes]'))return;
+  const s=document.createElement('script');
+  s.src='ete-pop-ajustes.js?v=1';
+  s.dataset.etePopAjustes='1';
+  document.head.appendChild(s);
+})();
