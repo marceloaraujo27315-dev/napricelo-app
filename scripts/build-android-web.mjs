@@ -25,6 +25,7 @@ const indexPath=path.join(out,'index.html');
 let html=await readFile(indexPath,'utf8');
 const scriptsAndroid=[
   'ete-prodoeste.js',
+  'ete-analises.js',
   'responsaveis-campo-dinamicos.js',
   'venda-instalacao-os-fix.js',
   'os-instalacao-route-hotfix.js',
