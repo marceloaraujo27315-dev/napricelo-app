@@ -8,6 +8,9 @@
     *,*::before,*::after{box-sizing:border-box!important}
     main,.page,.sheet,.documento,.document,.proposta,.proposal,.relatorio,.report{width:100%!important;max-width:100%!important;margin:0!important;padding-left:0!important;padding-right:0!important;overflow:visible!important}
     img,svg,canvas{max-width:100%!important;height:auto!important}
+    /* As assinaturas dos técnicos usam uma imagem única (sprite) com dois recortes.
+       Não reduzir essa imagem na impressão, senão as duas assinaturas aparecem juntas. */
+    .asscrop img,#assinaturaVendedorComercial img,#blocoAssinaturasComercial img{max-width:none!important;height:auto!important}
     table{width:100%!important;max-width:100%!important;border-collapse:collapse!important;table-layout:auto!important}
     th,td,p,li,span,div,h1,h2,h3,h4{overflow-wrap:anywhere!important;word-break:normal!important}
     pre,.texto,.detail-note,.observacoes{white-space:pre-wrap!important;overflow-wrap:anywhere!important}
