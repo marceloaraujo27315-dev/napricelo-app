@@ -32,7 +32,8 @@ const scriptsAndroid=[
   'multi-fotos-hotfix.js',
   'relatorio-fotos-multiplas-fix.js',
   'vistoria-cadastro-pop.js',
-  'print-a4-global-fix.js'
+  'print-a4-global-fix.js',
+  'instalacao-trt-fix.js'
 ];
 for(const s of scriptsAndroid){
   if(!html.includes(s))html=html.replace('</body>',`<script src="${s}?android=1"></script></body>`);
