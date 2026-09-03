@@ -29,7 +29,8 @@ const scriptsAndroid=[
   'android-localizacao-nativa.js',
   'registro-avancado-campo.js',
   'registro-fotos-draft-bridge.js',
-  'multi-fotos-hotfix.js'
+  'multi-fotos-hotfix.js',
+  'relatorio-fotos-multiplas-fix.js'
 ];
 for(const s of scriptsAndroid){
   if(!html.includes(s))html=html.replace('</body>',`<script src="${s}?android=1"></script></body>`);
