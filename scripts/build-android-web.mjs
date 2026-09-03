@@ -30,7 +30,8 @@ const scriptsAndroid=[
   'registro-avancado-campo.js',
   'registro-fotos-draft-bridge.js',
   'multi-fotos-hotfix.js',
-  'relatorio-fotos-multiplas-fix.js'
+  'relatorio-fotos-multiplas-fix.js',
+  'vistoria-cadastro-pop.js'
 ];
 for(const s of scriptsAndroid){
   if(!html.includes(s))html=html.replace('</body>',`<script src="${s}?android=1"></script></body>`);
