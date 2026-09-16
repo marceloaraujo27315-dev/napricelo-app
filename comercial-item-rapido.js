@@ -1,18 +1,53 @@
 // Napricelo Campo - item rapido no orcamento com opcao de salvar no catalogo
 (function(){
+  function esc(v){return typeof escHtml==='function'?escHtml(v):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+  async function comprimirFoto(file){
+    return new Promise((resolve,reject)=>{
+      const rd=new FileReader();
+      rd.onerror=reject;
+      rd.onload=()=>{
+        const img=new Image();
+        img.onerror=reject;
+        img.onload=()=>{
+          const max=900,s=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement('canvas');
+          c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);
+          c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+          resolve(c.toDataURL('image/jpeg',.76));
+        };
+        img.src=rd.result;
+      };
+      rd.readAsDataURL(file);
+    });
+  }
+
   function htmlNovoItem(){
     return `<label>Produto / serviço<select class="orc-prod" onchange="produtoOrcMudouRapido(this)"><option value="">Novo item (digitar agora)</option></select></label>
+    <div class="orc-prod-foto" style="margin-top:7px"></div>
     <div class="orc-manual-box">
       <label class="check"><input type="checkbox" class="orc-salvar-catalogo"> <span>Salvar este produto / serviço no catálogo</span></label>
       <div class="two orc-catalogo-detalhes">
         <label>Tipo<select class="orc-tipo-item"><option>Produto</option><option>Serviço</option><option>Manutenção</option><option>Instalação</option></select></label>
         <label>Categoria<input class="orc-categoria" placeholder="Ex.: Biodigestor, SAO, limpeza..."></label>
       </div>
+      <label>Foto do produto / serviço <small style="font-weight:normal">(opcional — câmera ou galeria)</small><input class="orc-foto-item" type="file" accept="image/*"><div class="orc-foto-preview" style="margin-top:8px"></div></label>
     </div>
     <label>Descrição<input class="orc-desc" required placeholder="Digite o produto ou serviço"></label>
     <div class="two"><label>Quantidade<input class="orc-qtd" type="number" step="0.001" value="1" min="0" oninput="recalcularOrcamento()"></label><label>Valor unitário (R$)<input class="orc-vu" inputmode="decimal" value="0" oninput="recalcularOrcamento()"></label></div>
     <label>Unidade<input class="orc-un" placeholder="un., serviço, m, kg..."></label>
     <div><b>Subtotal: <span class="orc-sub">R$ 0,00</span></b> <button type="button" onclick="this.closest('.orc-item').remove();recalcularOrcamento()">Remover</button></div>`;
+  }
+
+  function instalarFotoManual(row){
+    const input=row.querySelector('.orc-foto-item');if(!input)return;
+    input.addEventListener('change',async()=>{
+      const file=input.files?.[0];
+      if(!file){row._fotoManual='';row.querySelector('.orc-foto-preview').innerHTML='';return;}
+      try{
+        row._fotoManual=await comprimirFoto(file);
+        row.querySelector('.orc-foto-preview').innerHTML=`<img src="${row._fotoManual}" alt="Foto do item" style="max-width:180px;max-height:130px;object-fit:contain;border:1px solid #dfe7e2;border-radius:8px;padding:4px;background:#fff">`;
+      }catch(e){console.error(e);row._fotoManual='';alert('Não foi possível preparar essa imagem. Tente outra foto.');}
+    });
   }
 
   window.adicionarItemOrcamento=function(){
@@ -21,11 +56,13 @@
     row.innerHTML=htmlNovoItem();box.appendChild(row);
     atualizarSelectItem(row.querySelector('.orc-prod'));
     atualizarModoManual(row);
+    instalarFotoManual(row);
   };
 
   function atualizarModoManual(row){
     const manual=!row.querySelector('.orc-prod')?.value;
     const box=row.querySelector('.orc-manual-box');if(box)box.style.display=manual?'block':'none';
+    if(!manual){row._fotoManual='';const pv=row.querySelector('.orc-foto-preview');if(pv)pv.innerHTML='';}
   }
 
   window.produtoOrcMudouRapido=function(sel){
@@ -37,6 +74,7 @@
       row.querySelector('.orc-un').value=p.unidade||'';
       const ck=row.querySelector('.orc-salvar-catalogo');if(ck)ck.checked=false;
     }
+    const foto=row.querySelector('.orc-prod-foto');if(foto)foto.innerHTML=p?.foto_data?`<img src="${p.foto_data}" alt="${esc(p.nome||'Produto')}" style="max-width:150px;max-height:110px;object-fit:contain;border:1px solid #dfe7e2;border-radius:8px;padding:4px;background:#fff">`:'';
     atualizarModoManual(row);recalcularOrcamento();
   };
 
@@ -49,13 +87,68 @@
       tipo_item:row.querySelector('.orc-tipo-item')?.value||'Produto',
       unidade:item.unidade||null,
       preco:item.valor_unitario,
-      descricao:item.descricao
+      descricao:item.descricao,
+      foto_data:row._fotoManual||null
     };
     const r=await fetch(`${SUPABASE_URL}/rest/v1/produtos_servicos`,{method:'POST',headers:{...SUPABASE_HEADERS,Prefer:'return=representation'},body:JSON.stringify(payload)});
     if(!r.ok)throw new Error('Falha ao salvar no catálogo: '+await r.text());
     const salvo=(await r.json())[0];
     if(salvo){comercialProdutos.push(salvo);item.produto_id=Number(salvo.id)||null;}
     return item;
+  }
+
+  function htmlClienteRapido(){
+    return `<div id="orcClienteRapidoBox" class="autobox" style="display:none;margin-top:8px">
+      <h3 style="margin-top:0">Cadastrar cliente neste orçamento</h3>
+      <form id="orcClienteRapidoForm">
+        <label>Nome / razão social<input name="nome" required></label>
+        <label>Nome fantasia<input name="nome_fantasia" placeholder="Nome pelo qual a empresa é conhecida"></label>
+        <label>CNPJ / CPF<input name="documento"></label>
+        <div class="two"><label>Município<input name="municipio"></label><label>Telefone<input name="telefone"></label></div>
+        <label>Endereço<input name="endereco"></label>
+        <label>Responsável / contato<input name="responsavel"></label>
+        <label>E-mail<input name="email" type="email"></label>
+        <label>Observações<textarea name="observacoes"></textarea></label>
+        <div class="mini-actions"><button type="submit" class="primary">Salvar e usar neste orçamento</button><button type="button" onclick="fecharClienteRapido()">Cancelar</button></div>
+      </form>
+    </div>`;
+  }
+
+  function injetarClienteRapido(){
+    const sel=document.getElementById('orcCliente');if(!sel||document.getElementById('orcClienteRapidoBtn'))return;
+    const label=sel.closest('label');if(!label)return;
+    const btn=document.createElement('button');btn.type='button';btn.id='orcClienteRapidoBtn';btn.className='action';btn.style.marginTop='7px';btn.textContent='+ Cadastrar novo cliente';btn.onclick=()=>{
+      const box=document.getElementById('orcClienteRapidoBox');if(box)box.style.display=box.style.display==='none'?'block':'none';
+    };
+    label.appendChild(btn);
+    label.insertAdjacentHTML('afterend',htmlClienteRapido());
+    document.getElementById('orcClienteRapidoForm')?.addEventListener('submit',salvarClienteRapido);
+  }
+
+  window.fecharClienteRapido=function(){const box=document.getElementById('orcClienteRapidoBox');if(box)box.style.display='none';};
+
+  async function salvarClienteRapido(e){
+    e.preventDefault();
+    const form=e.currentTarget,o=Object.fromEntries(new FormData(form)),nome=(o.nome||'').trim();
+    if(!nome)return alert('Informe o nome / razão social do cliente.');
+    if(clientesCache.some(c=>String(c.nome||'').trim().toLocaleLowerCase('pt-BR')===nome.toLocaleLowerCase('pt-BR')))return alert('Já existe um cliente com esse nome. Selecione-o na lista acima.');
+    const btn=form.querySelector('button[type="submit"]'),txt=btn?.textContent;if(btn){btn.disabled=true;btn.textContent='Salvando...';}
+    try{
+      const payload={nome,nome_fantasia:o.nome_fantasia?.trim()||null,documento:o.documento?.trim()||null,municipio:o.municipio?.trim()||null,endereco:o.endereco?.trim()||null,responsavel:o.responsavel?.trim()||null,telefone:o.telefone?.trim()||null,email:o.email?.trim()||null,observacoes:o.observacoes?.trim()||null};
+      let salvo;
+      if(typeof salvarRegistroCadastro==='function')salvo=await salvarRegistroCadastro('clientes',payload);
+      else{
+        const r=await fetch(`${SUPABASE_URL}/rest/v1/clientes`,{method:'POST',headers:{...SUPABASE_HEADERS,Prefer:'return=representation'},body:JSON.stringify(payload)});
+        if(!r.ok)throw new Error(await r.text());salvo=(await r.json())[0];
+      }
+      clientesCache.push(salvo);clientesCache.sort((a,b)=>(a.nome_fantasia||a.nome||'').localeCompare((b.nome_fantasia||b.nome||''),'pt-BR'));
+      if(typeof atualizarSelectsClientes==='function')atualizarSelectsClientes();
+      if(typeof renderClientesUnidades==='function')renderClientesUnidades();
+      if(typeof preencherClientesComercial==='function')preencherClientesComercial();
+      const sel=document.getElementById('orcCliente');if(sel){sel.value=String(salvo.id);if(typeof preencherUnidadesOrcamento==='function')preencherUnidadesOrcamento();}
+      form.reset();fecharClienteRapido();alert('Cliente salvo e já selecionado neste orçamento.');
+    }catch(err){console.error(err);alert(/duplicate key|unique constraint|23505/i.test(String(err?.message||err))?'Já existe um cliente com esse nome.':'Não foi possível salvar o cliente.');}
+    finally{if(btn){btn.disabled=false;btn.textContent=txt||'Salvar e usar neste orçamento';}}
   }
 
   async function salvarOrcamentoRapido(e){
@@ -72,6 +165,7 @@
       unidade:r.querySelector('.orc-un').value.trim()||null,
       valor_unitario:numBR(r.querySelector('.orc-vu').value)
     })).filter(x=>x.descricao&&x.quantidade>0);
+    if(!cl)return alert('Selecione um cliente ou cadastre um novo cliente neste orçamento.');
     if(!itens.length)return alert('Inclua pelo menos um item.');
 
     const botao=f.querySelector('button.primary');const textoBotao=botao?.textContent;
@@ -95,6 +189,7 @@
 
   function ativar(){
     const f=document.getElementById('orcamentoForm');if(!f)return false;
+    injetarClienteRapido();
     if(f.dataset.itemRapido==='1')return true;
     f.dataset.itemRapido='1';
     f.addEventListener('submit',salvarOrcamentoRapido,true);
