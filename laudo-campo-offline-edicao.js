@@ -47,7 +47,7 @@ function salvarDraftAgora(mensagem=false){
 }
 function agendarSalvar(){clearTimeout(salvarTimer);salvarTimer=setTimeout(()=>salvarDraftAgora(false),350)}
 
-function renderBadge(){const b=document.getElementById('lbRascunhosBtn');if(b){const n=ler().length;b.textContent=`Rascunhos${n?' ('+n+')':''}`}}
+function renderBadge(){const b=document.getElementById('lbRascunhosBtn');if(b){const n=ler().length,txt=`Rascunhos${n?' ('+n+')':''}`;if(b.textContent!==txt)b.textContent=txt}}
 function instalarTopo(){
  const sec=document.getElementById('laudosBiodigestor');if(!sec)return false;
  const tabs=sec.querySelector('.tabs');if(!tabs)return false;
@@ -152,7 +152,9 @@ window.fetch=async function(input,init={}){
 };
 
 window.LaudoCampoDraft={abrir:abrirDraft,excluir:excluirDraft,lista:mostrarRascunhos,salvar:salvarDraftAgora};
-new MutationObserver(()=>{instalarTopo();envolverNovo();prepararForm();injetarEditar()}).observe(document.documentElement,{childList:true,subtree:true});
-setInterval(()=>{instalarTopo();envolverNovo();injetarEditar()},1200);
+let obsAgendado=false;
+const obs=new MutationObserver(()=>{if(obsAgendado)return;obsAgendado=true;setTimeout(()=>{obsAgendado=false;instalarTopo();envolverNovo();prepararForm();injetarEditar();},80)});
+obs.observe(document.documentElement,{childList:true,subtree:true});
+setInterval(()=>{instalarTopo();envolverNovo();injetarEditar()},2500);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{instalarTopo();envolverNovo();prepararForm();});else{instalarTopo();envolverNovo();prepararForm();}
 })();
