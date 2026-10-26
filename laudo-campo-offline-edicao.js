@@ -54,6 +54,44 @@ function instalarTopo(){
  if(!document.getElementById('lbRascunhosBtn')){const b=document.createElement('button');b.type='button';b.id='lbRascunhosBtn';b.onclick=mostrarRascunhos;tabs.appendChild(b)}
  renderBadge();return true;
 }
+// Controle explícito de remoção: apagar a referência do laudo, nunca o arquivo da nuvem.
+const FOTOS_LAUDO={foto_equip:['foto_antes','Biodigestor / reator'],foto_unidade:['foto_durante','Residência / unidade'],foto_referencia:['foto_referencia','Referência do local'],foto_mapa:['foto_mapa','Mapa / localização']};
+function urlFotoOriginal(original,nome){
+ if(!original)return null;
+ const campo=FOTOS_LAUDO[nome]?.[0];
+ return campo==='foto_antes'||campo==='foto_durante'?original[campo]:(original.campos||{})[campo];
+}
+function instalarRemocaoFotos(form){
+ const original=editando||carregando?.original||getDraft(form.dataset.laudoDraftId)?.original;
+ for(const [nome,[,rotulo]] of Object.entries(FOTOS_LAUDO)){
+  const inp=form.elements[nome];if(!inp||inp.dataset.laudoRemocao==='1')continue;
+  inp.dataset.laudoRemocao='1';
+  const wrapper=document.createElement('div');wrapper.className='lb-foto-atual';wrapper.style.cssText='margin:6px 0 12px';
+  inp.insertAdjacentElement('afterend',wrapper);
+  const url=urlFotoOriginal(original,nome);
+  function render(){
+   const removida=form.dataset['remover'+nome]==='1';
+   wrapper.replaceChildren();
+   if(url&&!removida){
+    const img=document.createElement('img');img.src=url;img.alt=rotulo;
+    img.style.cssText='display:block;max-width:180px;max-height:130px;object-fit:contain;margin:5px 0';
+    wrapper.appendChild(img);
+   }
+   if(url){
+    const botao=document.createElement('button');botao.type='button';botao.className='action';
+    botao.textContent=removida?'Desfazer remoção da foto':'Remover foto deste laudo';
+    botao.onclick=()=>{
+     form.dataset['remover'+nome]=removida?'0':'1';
+     if(!removida)inp.value='';
+     agendarSalvar();render();
+    };
+    wrapper.appendChild(botao);
+   }
+  }
+  inp.addEventListener('change',()=>{if(inp.files?.length){form.dataset['remover'+nome]='0';render();}});
+  render();
+ }
+}
 function prepararForm(){
  const f=document.getElementById('laudoBioForm');if(!f||f.dataset.draftReady==='1')return false;f.dataset.draftReady='1';
  if(!f.dataset.laudoDraftId)f.dataset.laudoDraftId=carregando?.id||uid();
@@ -64,6 +102,7 @@ function prepararForm(){
  document.getElementById('lbSalvarNovo').onclick=()=>{salvarDraftAgora(false);carregando=null;editando=null;window.LaudoBio?.novo?.();setTimeout(()=>document.getElementById('laudoBioForm')?.scrollIntoView({block:'start'}),80)};
  f.addEventListener('input',agendarSalvar);f.addEventListener('change',agendarSalvar);
  f.querySelectorAll('input[type=file]').forEach(inp=>inp.addEventListener('change',()=>salvarFotoInput(inp,f.dataset.laudoDraftId).catch(console.error)));
+ instalarRemocaoFotos(f);
  if(carregando){aplicarDados(f,carregando.dados);f.dataset.laudoEditId=carregando.editId||'';editando=carregando.original||null;restaurarFotos(f,carregando.id).catch(console.error);const st=document.getElementById('lbDraftStatus');if(st)st.textContent='Rascunho recuperado deste aparelho.';carregando=null;}
  f.addEventListener('submit',interceptarSubmit,true);
  return true;
@@ -110,7 +149,7 @@ async function interceptarSubmit(ev){
  const btn=f.querySelector('button.primary');if(btn){btn.disabled=true;btn.textContent='Salvando alterações...'}
  try{
   const fd=new FormData(f),codigo=original.codigo||('LAUDO-'+Date.now().toString().slice(-6));
-  async function novaFoto(nome,etapa,antiga){const file=f.elements[nome]?.files?.[0];if(!file)return antiga||null;return await uploadFotoManutencao(file,codigo,etapa)}
+  async function novaFoto(nome,etapa,antiga){if(f.dataset['remover'+nome]==='1')return null;const file=f.elements[nome]?.files?.[0];if(!file)return antiga||null;return await uploadFotoManutencao(file,codigo,etapa)}
   const fotoAntes=await novaFoto('foto_equip','equipamento',original.foto_antes);
   const fotoDurante=await novaFoto('foto_unidade','unidade',original.foto_durante);
   const fotoRef=await novaFoto('foto_referencia','referencia',original.campos?.foto_referencia);
