@@ -105,4 +105,45 @@
     }
     return result;
   };
+
+  // Ações diretamente na ficha da unidade e exclusão protegida.
+  const renderFichaOriginal=window.renderFichaCliente;
+  if(typeof renderFichaOriginal==='function')window.renderFichaCliente=function(){
+    const result=renderFichaOriginal.apply(this,arguments);
+    document.querySelectorAll('#clientProfileContent .profile-unit').forEach(el=>{
+      const title=el.querySelector('.profile-unit-head h3')?.textContent?.trim();
+      const client=arguments[0];
+      const unit=(typeof unidadesCache!=='undefined'?unidadesCache:[]).find(u=>Number(u.cliente_id)===Number(client?.id)&&u.nome===title);
+      if(!unit||el.querySelector('.nap-unit-actions'))return;
+      const box=document.createElement('div');box.className='nap-unit-actions';box.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin:9px 0';
+      const edit=document.createElement('button');edit.textContent='Editar dados da unidade';edit.type='button';edit.onclick=()=>window.editarUnidade(unit.id);
+      const del=document.createElement('button');del.textContent='Excluir unidade';del.type='button';del.style.cssText='background:#fff1f0;color:#a21d1d;border:1px solid #e9b6b6';del.onclick=()=>window.excluirUnidade(unit.id);
+      for(const b of [edit,del]){b.style.padding='9px 12px';b.style.borderRadius='7px';box.appendChild(b);}
+      el.querySelector('.profile-unit-head')?.after(box);
+    });
+    return result;
+  };
+  window.excluirUnidade=async function(id){
+    const u=unidadesCache.find(x=>Number(x.id)===Number(id));
+    if(!u)return alert('Unidade não encontrada.');
+    if(typeof NAPRICELO_PERFIL!=='undefined'&&NAPRICELO_PERFIL!=='administrador')
+      return alert('Somente o administrador pode excluir unidades.');
+    try{
+      const url=SUPABASE_URL+'/rest/v1/equipamentos?select=id&unidade_id=eq.'+Number(id)+'&limit=1';
+      const res=await fetch(url,{headers:SUPABASE_HEADERS});
+      if(!res.ok)throw Error('Não foi possível verificar os equipamentos vinculados.');
+      const linked=await res.json();
+      if(linked.length)return alert('Esta unidade possui equipamentos vinculados. A exclusão foi bloqueada para proteger cadastros e históricos. Corrija os dados usando Editar.');
+      const typed=prompt('Excluir definitivamente a unidade "'+u.nome+'"? Essa ação não pode ser desfeita. Para confirmar, digite EXCLUIR:');
+      if(typed!=='EXCLUIR')return;
+      const remove=await fetch(SUPABASE_URL+'/rest/v1/unidades?id=eq.'+Number(id),{method:'DELETE',headers:{...SUPABASE_HEADERS,Prefer:'return=representation'}});
+      if(!remove.ok)throw Error('Banco retornou '+remove.status);
+      const deleted=await remove.json();
+      if(!deleted.length)throw Error('Nenhuma unidade foi excluída. Verifique as permissões.');
+      unidadesCache=unidadesCache.filter(x=>Number(x.id)!==Number(id));
+      atualizarSelectsClientes();renderClientesUnidades();
+      if(typeof fecharFichaCliente==='function')fecharFichaCliente();
+      alert('Unidade excluída.');
+    }catch(err){console.error(err);alert('Não foi possível excluir a unidade: '+err.message);}
+  };
 })();
