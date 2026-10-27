@@ -36,7 +36,7 @@
     const u=unidadesCache.find(x=>Number(x.id)===Number(id));if(!u)return alert('Unidade não encontrada.');
     const customers=clientesCache.map(c=>({value:c.id,label:c.nome_fantasia||c.nome||('Cliente '+c.id)}));
     editor('Editar unidade / propriedade',[
-      {name:'cliente_id',label:'Cliente / empreendimento',value:u.cliente_id,options:customers},
+      {name:'cliente_id',label:'Cliente / empreendimento (vínculo mantido)',value:u.cliente_id,options:customers.filter(c=>Number(c.value)===Number(u.cliente_id))},
       fld('nome','Nome da unidade / propriedade',u.nome,true),fld('municipio','Cidade / município',u.municipio),
       fld('endereco','Endereço / localização',u.endereco),fld('responsavel','Responsável local',u.responsavel),
       memo('observacoes','Observações',u.observacoes)
@@ -57,9 +57,15 @@
     if(!e)return alert('Equipamento não encontrado. Atualize a lista.');
     const tipos=['Biodigestor','Caixa de Gordura','SAO','Caixa de Areia / Desarenador','Ecobio Reator'];
     if(e.tipo&&!tipos.includes(e.tipo))tipos.push(e.tipo);
+    const clientes=(typeof clientesCache!=='undefined'?clientesCache:[]);
+    const unidades=(typeof unidadesCache!=='undefined'?unidadesCache:[]);
+    const opClientes=[{value:'',label:'Sem vínculo cadastral (manual)'},...clientes.map(c=>({value:String(c.id),label:c.nome_fantasia||c.nome}))];
+    const opUnidades=[{value:'',label:'Sem unidade cadastrada'},...unidades.map(u=>({value:String(u.id),label:u.nome+' — '+(clientes.find(c=>Number(c.id)===Number(u.cliente_id))?.nome||'')}))];
     editor('Editar equipamento',[
-      fld('codigo','Código do equipamento',e.codigo,true),fld('cliente','Cliente / empreendimento',e.cliente,true),
-      fld('unidade','Unidade / propriedade',e.unidade),fld('municipio','Cidade / município',e.municipio),
+      {name:'cliente_id',label:'Cliente cadastrado (vínculo)',value:e.cliente_id||'',options:opClientes},
+      {name:'unidade_id',label:'Unidade cadastrada (vínculo)',value:e.unidade_id||'',options:opUnidades},
+      fld('codigo','Código do equipamento',e.codigo,true),fld('cliente','Cliente / empreendimento (nome)',e.cliente,true),
+      fld('unidade','Unidade / propriedade (nome)',e.unidade),fld('municipio','Cidade / município',e.municipio),
       {name:'tipo',label:'Tipo',value:e.tipo,options:tipos.map(t=>({value:t,label:t}))},
       fld('modelo','Marca / modelo',e.modelo),fld('capacidade','Capacidade',e.capacidade),
       fld('localizacao','Localização / setor',e.localizacao||e.local),memo('observacoes','Observações',e.observacoes)
@@ -67,7 +73,18 @@
       const codigo=trim(d.codigo),cliente=trim(d.cliente);
       if(!codigo||!cliente)throw Error('Código e cliente são obrigatórios.');
       if(eqList.some(x=>Number(x.id)!==Number(id)&&trim(x.codigo).toLocaleLowerCase('pt-BR')===codigo.toLocaleLowerCase('pt-BR')))throw Error('O código já pertence a outro equipamento.');
-      const payload={codigo,cliente,unidade:trim(d.unidade)||null,municipio:trim(d.municipio)||null,tipo:d.tipo,modelo:trim(d.modelo)||null,capacidade:trim(d.capacidade)||null,localizacao:trim(d.localizacao)||null,observacoes:trim(d.observacoes)||null};
+      const cliente_id=d.cliente_id?Number(d.cliente_id):null;
+      const unidade_id=d.unidade_id?Number(d.unidade_id):null;
+      const unidadeRef=unidades.find(u=>Number(u.id)===unidade_id);
+      if(cliente_id&&!clientes.some(c=>Number(c.id)===cliente_id))throw Error('Cliente cadastrado inválido.');
+      if(unidade_id&&!unidadeRef)throw Error('Unidade cadastrada inválida.');
+      if(unidadeRef&&Number(unidadeRef.cliente_id)!==Number(cliente_id))throw Error('A unidade selecionada pertence a outro cliente. Escolha o cliente correspondente.');
+      const payload={codigo,cliente_id,unidade_id,
+        cliente:cliente_id?(clientes.find(c=>Number(c.id)===cliente_id)?.nome_fantasia||clientes.find(c=>Number(c.id)===cliente_id)?.nome||cliente):cliente,
+        unidade:unidadeRef?.nome||trim(d.unidade)||null,
+        municipio:trim(d.municipio)||unidadeRef?.municipio||null,
+        tipo:d.tipo,modelo:trim(d.modelo)||null,capacidade:trim(d.capacidade)||null,
+        localizacao:trim(d.localizacao)||null,observacoes:trim(d.observacoes)||null};
       const res=await fetch(SUPABASE_URL+'/rest/v1/equipamentos?id=eq.'+Number(id),{method:'PATCH',headers:{...SUPABASE_HEADERS,Prefer:'return=representation'},body:JSON.stringify(payload)});
       if(!res.ok)throw Error('Banco de dados: '+res.status+' '+(await res.text()).slice(0,200));
       const saved=(await res.json())[0];if(!saved)throw Error('O banco não confirmou a alteração.');
